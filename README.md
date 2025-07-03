@@ -228,7 +228,7 @@ Eclipse LSP4Jakarta provides the following [Jakarta WebSocket diagnostics](./jak
 | Server endpoint paths must start with a leading '/'. | Error | N/A |
 | Server endpoint paths must not contain the sequences '/../', '/./' or '//'. | Error | N/A |
 
-## Contributing
+## How to Contribute
 
 See the [DEVELOPING](./DEVELOPING.md) and [CONTRIBUTING](./CONTRIBUTING.md) documents for more details.
 
