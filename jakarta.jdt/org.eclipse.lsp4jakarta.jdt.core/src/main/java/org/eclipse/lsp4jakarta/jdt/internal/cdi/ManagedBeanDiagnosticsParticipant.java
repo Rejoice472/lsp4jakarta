@@ -352,7 +352,6 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                                     List<Diagnostic> diagnostics, IType type, String target) throws JavaModelException {
         // this method will be called to scan all methods looking for either @Produces annotations OR @Inject annotations. In either
         // scenario this method will then check for disallowed parameter annotations and add diagnostics to be displayed if detected.
-    	//test
         Set<String> paramScopesSet;
 
         for (IMethod method : type.getMethods()) {
