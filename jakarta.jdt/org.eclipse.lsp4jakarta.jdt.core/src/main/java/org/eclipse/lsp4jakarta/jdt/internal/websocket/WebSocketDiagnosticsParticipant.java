@@ -70,7 +70,7 @@ public class WebSocketDiagnosticsParticipant implements IJavaDiagnosticsParticip
         IJavaProject javaProject = context.getJavaProject();
         IClasspathEntry[] entries = javaProject.getResolvedClasspath(true);
 
-        PlatformVersionFinder.analyzeClasspath(entries);
+        JakartaVersionFinder.analyzeClasspath(entries);
 
         List<Diagnostic> diagnostics = new ArrayList<>();
 
