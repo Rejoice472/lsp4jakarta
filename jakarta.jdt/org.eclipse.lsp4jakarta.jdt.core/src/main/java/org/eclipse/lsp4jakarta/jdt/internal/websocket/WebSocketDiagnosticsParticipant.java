@@ -70,11 +70,9 @@ public class WebSocketDiagnosticsParticipant implements IJavaDiagnosticsParticip
         IJavaProject javaProject = context.getJavaProject();
         IClasspathEntry[] entries = javaProject.getResolvedClasspath(true);
 
-        JakartaVersionFinder.analyzeClasspath(entries);
-
         List<Diagnostic> diagnostics = new ArrayList<>();
 
-        switch (version) {	
+        switch (version) {
             case "": {
                 diagnostics = new WebSocketDiagnosticsJ9().collectDiagnostics(context, monitor);
                 break;
@@ -91,8 +89,5 @@ public class WebSocketDiagnosticsParticipant implements IJavaDiagnosticsParticip
 
         return diagnostics;
     }
-    
-    
-    
 
 }

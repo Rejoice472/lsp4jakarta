@@ -59,6 +59,7 @@ import org.eclipse.lsp4jakarta.settings.JakartaTraceSettings;
 import org.eclipse.lsp4jakarta.settings.SharedSettings;
 import org.eclipse.lsp4jakarta.snippets.JavaSnippetCompletionContext;
 import org.eclipse.lsp4jakarta.snippets.SnippetContextForJava;
+import org.eclipse.lsp4jakarta.version.JakartaVersionManager;
 
 public class JakartaTextDocumentService implements TextDocumentService {
 
@@ -294,5 +295,12 @@ public class JakartaTextDocumentService implements TextDocumentService {
     public void updateTraceSettings(JakartaTraceSettings newTrace) {
         JakartaTraceSettings trace = sharedSettings.getTraceSettings();
         trace.update(newTrace);
+    }
+
+    /**
+     * Clear version handling Map
+     */
+    public void clearVersionCache() {
+        JakartaVersionManager.getInstance().clearVersions();
     }
 }
