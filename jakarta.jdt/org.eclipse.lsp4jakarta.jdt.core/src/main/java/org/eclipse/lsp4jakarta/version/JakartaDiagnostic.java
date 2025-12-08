@@ -7,44 +7,44 @@ import java.util.stream.Collectors;
 public enum JakartaDiagnostic {
 
     // --- EE 9 Diagnostics ---
-    INVALID_ON_OPEN_PARAMS("InvalidOnOpenParams", JakartaVersion.EE_9, JakartaVersion.EE_10),
-    INVALID_ON_CLOSE_PARAMS("InvalidOnCloseParams", JakartaVersion.EE_9),
-    PATH_PARAMS_MISSING_FROM_PARAM("PathParamsMissingFromParam", JakartaVersion.EE_9),
-    PATH_PARAM_DOES_NOT_MATCH_ENDPOINT_URI("PathParamDoesNotMatchEndpointURI", JakartaVersion.EE_9),
-    ON_MESSAGE_DUPLICATE_METHOD("OnMessageDuplicateMethod", JakartaVersion.EE_9),
-    INVALID_ENDPOINT_PATH_NO_SLASH("InvalidEndpointPathWithNoStartingSlash", JakartaVersion.EE_9),
-    INVALID_ENDPOINT_PATH_RELATIVE("InvalidEndpointPathWithRelativePaths", JakartaVersion.EE_9),
-    INVALID_ENDPOINT_PATH_NOT_TEMPLATE("InvalidEndpointPathNotTempleateOrPartialURI", JakartaVersion.EE_9),
-    INVALID_ENDPOINT_PATH_DUPLICATE_VAR("InvalidEndpointPathDuplicateVariable", JakartaVersion.EE_9),
-    InvalidTypeOfField("InvalidTypeOfField", JakartaVersion.EE_9),
-    InvalidReturnTypeOfMethod("InvalidReturnTypeOfMethod", JakartaVersion.EE_9),
+    // ---BeanValidationDiagnostics-----
+    INVALID_CONSTRAIN_ANNOTATION_ON_STATIC_METHOD_OR_FIELD("InvalidConstrainAnnotationOnStaticMethodOrField", JakartaVersion.EE_9),
+    INVALID_ANNOTATION_ON_NON_BOOLEAN_METHOD_OR_FIELD("InvalidAnnotationOnNonBooleanMethodOrField", JakartaVersion.EE_9),
+    INVALID_ANNOTATION_ON_NON_BIGDECIMAL_CHAR_BYTE_SHORT_INT_LONG_METHOD_OR_FIELD("InvalidAnnotationOnNonBigDecimalCharByteShortIntLongMethodOrField", JakartaVersion.EE_9),
+    INVALID_ANNOTATION_ON_NON_DATETIME_METHOD_OR_FIELD("InvalidAnnotationOnNonDateTimeMethodOrField", JakartaVersion.EE_9),
+    INVALID_ANNOTATION_ON_NON_MIN_MAX_METHOD_OR_FIELD("InvalidAnnotationOnNonMinMaxMethodOrField", JakartaVersion.EE_9),
+    INVALID_ANNOTATION_ON_NON_POSITIVE_METHOD_OR_FIELD("InvalidAnnotationOnNonPositiveMethodOrField", JakartaVersion.EE_9),
+    INVALID_ANNOTATION_ON_NON_SIZE_METHOD_OR_FIELD("InvalidAnnotationOnNonSizeMethodOrField", JakartaVersion.EE_9),
+    INVALID_ANNOTATION_ON_NON_STRING_METHOD_OR_FIELD("InvalidAnnotationOnNonStringMethodOrField", JakartaVersion.EE_9),
+
+    //---ServletDiagnostics---
+    CLASS_WEBFILTER_ANNOTATED_NO_FILTER_INTERFACE_IMPL("ClassWebFilterAnnotatedNoFilterInterfaceImpl", JakartaVersion.EE_9),
+    WEBFILTER_ANNOTATION_MISSING_ATTRIBUTES("WebFilterAnnotationMissingAttributes", JakartaVersion.EE_9),
+    WEBFILTER_ANNOTATION_ATTRIBUTE_CONFLICT("WebFilterAnnotationAttributeConflict", JakartaVersion.EE_9),
+    WEBFILTER_ANNOTATED_CLASS_REQ_IFACE_NO_IMPL("WebFilterAnnotatedClassReqIfaceNoImpl", JakartaVersion.EE_9),
+    WEBSERVLET_ANNOTATED_CLASS_DOES_NOT_EXTEND_HTTPSERVLET("WebServletAnnotatedClassDoesNotExtendHttpServlet", JakartaVersion.EE_9),
+    WEBSERVLET_ANNOTATED_CLASS_UNKNOWN_SUPERTYPE_DOES_NOT_EXTEND_HTTPSERVLET("WebServletAnnotatedClassUnknownSuperTypeDoesNotExtendHttpServlet", JakartaVersion.EE_9),
+    WEBSERVLET_ANNOTATION_MISSING_ATTRIBUTES("WebServletAnnotationMissingAttributes", JakartaVersion.EE_9),
+    WEBSERVLET_ANNOTATION_ATTRIBUTE_CONFLICT("WebServletAnnotationAttributeConflict", JakartaVersion.EE_9),
+
+    //---PersistenceMapKeyDiagnostics---
+    INVALID_FINAL_METHOD_IN_ENTITY_ANNOTATED_CLASS("InvalidFinalMethodInEntityAnnotatedClass", JakartaVersion.EE_9),
+    INVALID_PERSISTENT_FIELD_IN_ENTITY_ANNOTATED_CLASS("InvalidPersistentFieldInEntityAnnotatedClass", JakartaVersion.EE_9),
+    INVALID_CONSTRUCTOR_IN_ENTITY_ANNOTATED_CLASS("InvalidConstructorInEntityAnnotatedClass", JakartaVersion.EE_9),
+    INVALID_FINAL_MODIFIER_ON_ENTITY_ANNOTATED_CLASS("InvalidFinalModifierOnEntityAnnotatedClass", JakartaVersion.EE_9),
+    INVALID_MAPKEY_ANNOTATIONS_ON_SAME_METHOD("InvalidMapKeyAnnotationsOnSameMethod", JakartaVersion.EE_9),
+    INVALID_MAPKEY_ANNOTATIONS_ON_SAME_FIELD("InvalidMapKeyAnnotationsOnSameField", JakartaVersion.EE_9),
+    INVALID_METHOD_WITH_MULTIPLE_MPJC_ANNOTATIONS("InvalidMethodWithMultipleMPJCAnnotations", JakartaVersion.EE_9),
+    INVALID_FIELD_WITH_MULTIPLE_MPJC_ANNOTATIONS("InvalidFieldWithMultipleMPJCAnnotations", JakartaVersion.EE_9),
+    INVALID_TYPE_OF_FIELD("InvalidTypeOfField", JakartaVersion.EE_9),
+    INVALID_METHOD_NAME("InvalidMethodName", JakartaVersion.EE_9),
+    INVALID_METHOD_ACCESS_SPECIFIER("InvalidMethodAccessSpecifier", JakartaVersion.EE_9),
+    INVALID_RETURN_TYPE_OF_METHOD("InvalidReturnTypeOfMethod", JakartaVersion.EE_9),
+    INVALID_MAPKEY_ANNOTATIONS_FIELD_NOT_FOUND("InvalidMapKeyAnnotationsFieldNotFound", JakartaVersion.EE_9);
 
     // --- EE 10 Diagnostics ---
-    INVALID_DATE_FORMAT("InvalidDateFormat", JakartaVersion.EE_10),
-    MISSING_RESOURCE_ANNOTATION("MissingResourceAnnotation", JakartaVersion.EE_10),
-    MISSING_RESOURCE_NAME_ATTRIBUTE("MissingResourceNameAttribute", JakartaVersion.EE_10),
-    MISSING_RESOURCE_TYPE_ATTRIBUTE("MissingResourceTypeAttribute", JakartaVersion.EE_10),
-    POST_CONSTRUCT_PARAMS("PostConstructParams", JakartaVersion.EE_10),
-    POST_CONSTRUCT_RETURN_TYPE("PostConstructReturnType", JakartaVersion.EE_10),
-    POST_CONSTRUCT_EXCEPTION("PostConstructException", JakartaVersion.EE_10),
-    PRE_DESTROY_PARAMS("PreDestroyParams", JakartaVersion.EE_10),
-    PRE_DESTROY_STATIC("PreDestroyStatic", JakartaVersion.EE_10),
-    PRE_DESTROY_EXCEPTION("PreDestroyException", JakartaVersion.EE_10),
 
     // --- EE 11 Diagnostics ---
-    INVALID_INJECT_FINAL_FIELD("InvalidInjectAnnotationOnFinalField", JakartaVersion.EE_11),
-    INVALID_INJECT_INNER_CLASS("InvalidInjectAnnotationOnNonStaticInnerClass", JakartaVersion.EE_11),
-    INVALID_INJECT_FINAL_METHOD("InvalidInjectAnnotationOnFinalMethod", JakartaVersion.EE_11),
-    INVALID_INJECT_ABSTRACT_METHOD("InvalidInjectAnnotationOnAbstractMethod", JakartaVersion.EE_11),
-    INVALID_INJECT_STATIC_METHOD("InvalidInjectAnnotationOnStaticMethod", JakartaVersion.EE_11),
-    INVALID_INJECT_GENERIC_METHOD("InvalidInjectAnnotationOnGenericMethod", JakartaVersion.EE_11),
-    INVALID_INJECT_MULTIPLE_CONSTRUCTORS("InvalidInjectAnnotationOnMultipleConstructors", JakartaVersion.EE_11),
-    INJECTION_POINT_INVALID_PRIMITIVE("InjectionPointInvalidPrimitiveBean", JakartaVersion.EE_11),
-    INJECTION_POINT_INVALID_INNER_CLASS("InjectionPointInvalidInnerClassBean", JakartaVersion.EE_11),
-    INJECTION_POINT_INVALID_ABSTRACT_CLASS("InjectionPointInvalidAbstractClassBean", JakartaVersion.EE_11),
-    INJECTION_POINT_INVALID_EXTENSION("InjectionPointInvalidExtensionProviderBean", JakartaVersion.EE_11),
-    INJECTION_POINT_INVALID_VETOED("InjectionPointInvalidVetoedClassBean", JakartaVersion.EE_11),
-    INJECTION_POINT_INVALID_CONSTRUCTOR("InjectionPointInvalidConstructorBean", JakartaVersion.EE_11);
 
     private final String code;
     private final JakartaVersion minVersion;
