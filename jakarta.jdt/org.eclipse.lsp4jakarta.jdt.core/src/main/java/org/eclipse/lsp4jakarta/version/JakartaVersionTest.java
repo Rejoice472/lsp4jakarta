@@ -8,9 +8,9 @@ public class JakartaVersionTest {
         JakartaVersion projectVersion10 = JakartaVersion.EE_10;// Project 2
         JakartaVersion projectVersion11 = JakartaVersion.EE_11;// Project 3
 
-        JakartaDiagnostic D1 = JakartaDiagnostic.INVALID_ON_OPEN_PARAMS; // JEE9
-        JakartaDiagnostic D2 = JakartaDiagnostic.INVALID_DATE_FORMAT; // JEE10
-        JakartaDiagnostic D3 = JakartaDiagnostic.INVALID_INJECT_FINAL_FIELD; // JEE11
+        JakartaDiagnostic D1 = JakartaDiagnostic.INVALID_CONSTRAIN_ANNOTATION_ON_STATIC_METHOD_OR_FIELD; // JEE9
+        JakartaDiagnostic D2 = JakartaDiagnostic.INVALID_ANNOTATION_ON_NON_BOOLEAN_METHOD_OR_FIELD; // JEE10
+        JakartaDiagnostic D3 = JakartaDiagnostic.INVALID_ANNOTATION_ON_NON_DATETIME_METHOD_OR_FIELD; // JEE11
 
         System.out.println("Project version 9 ----------\n");
         System.out.println(D1.getCode() + "-" + D1.getMinVersion() + ":" + D1.isApplicableTo(projectVersion9));
