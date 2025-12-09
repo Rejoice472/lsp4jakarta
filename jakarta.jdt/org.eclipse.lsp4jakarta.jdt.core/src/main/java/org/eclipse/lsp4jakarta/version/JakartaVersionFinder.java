@@ -90,20 +90,20 @@ public class JakartaVersionFinder {
 
         // websocket-api || jakarta.websocket || websocket-client-api || websocket-all - 2.0,2.1,2.2
         if (name.contains("websocket-api") || name.equals("websocket-client-api") || name.equals("websocket-all") || name.equals("jakarta.websocket")) {
-            return mapToJakartaVersion(ver, 2.0, 2.1, 2.2);
+            return mapToJakartaVersion(ver, 2.2, 2.1, 2.0);
         }
         // json-api || jakarta.json - 2.0, 2.1, 2.1
         if (name.contains("json-api") || name.equals("jakarta.json")) {
-            return mapToJakartaVersion(ver, 2.0, 2.1, 2.1);
+            return mapToJakartaVersion(ver, 2.1, 2.1, 2.0);
         }
 
         // json.bind-api || jakarta.json.bind - 2.0, 3.0, 3.0
         if (name.contains("json.bind-api") || name.equals("jakarta.json.bind")) {
-            return mapToJakartaVersion(ver, 2.0, 3.0, 3.0);
+            return mapToJakartaVersion(ver, 3.0, 3.0, 2.0);
         }
         // annotation-api || jakarta.annotation - 2.0, 2.1, 3.0
         if (name.contains("annotation-api") || name.equals("jakarta.annotation")) {
-            return mapToJakartaVersion(ver, 2.0, 2.1, 3.0);
+            return mapToJakartaVersion(ver, 3.0, 2.1, 2.0);
         }
         // ejb-api || jakarta.ejb - 4.0
         if (name.contains("ejb-api") || name.equals("jakarta.ejb")) {
@@ -121,15 +121,15 @@ public class JakartaVersionFinder {
 
         // validation-api || jakarta.validation - 3.0, 3.0, 3.1
         if (name.contains("validation-api") || name.contains("jakarta.validation")) {
-            return mapToJakartaVersion(ver, 3.0, 3.0, 3.1);
+            return mapToJakartaVersion(ver, 3.1, 3.0, 3.0);
         }
         // interceptor-api || jakarta.interceptor - 2.0, 2.1, 2.2
         if (name.contains("interceptor-api") || name.contains("jakarta.interceptor")) {
-            return mapToJakartaVersion(ver, 2.0, 2.1, 2.2);
+            return mapToJakartaVersion(ver, 2.2, 2.1, 2.0);
         }
         // enterprise.cdi-api || jakarta.enterprise - 3.0, 4.0, 4.1
         if (name.contains("enterprise.cdi-api") || name.contains("jakarta.enterprise")) {
-            return mapToJakartaVersion(ver, 3.0, 4.0, 4.1);
+            return mapToJakartaVersion(ver, 4.1, 4.0, 3.0);
         }
         // inject-api || jakarta.inject - 2.0
         if (name.contains("inject-api") || name.contains("jakarta.inject")) {
@@ -137,11 +137,11 @@ public class JakartaVersionFinder {
         }
         // security.enterprise-api || jakarta.security.enterprise - 2.0, 3.0, 4.0
         if (name.contains("security.enterprise-api") || name.contains("jakarta.security.enterprise")) {
-            return mapToJakartaVersion(ver, 2.0, 3.0, 4.0);
+            return mapToJakartaVersion(ver, 4.0, 3.0, 2.0);
         }
         // data-api || jakarta.data - 1.0(11)
         if (name.contains("data-api") || name.contains("jakarta.data")) {
-            return mapToJakartaVersion(ver, 0.0, 0.0, 1.0);
+            return mapToJakartaVersion(ver, 1.0, 0.0, 0.0);
         }
 
         return JakartaVersion.UNKNOWN;
