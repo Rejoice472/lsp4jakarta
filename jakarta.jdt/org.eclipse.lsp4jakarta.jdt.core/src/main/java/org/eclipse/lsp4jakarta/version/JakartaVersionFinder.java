@@ -5,6 +5,11 @@ import java.util.regex.Pattern;
 
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.lsp4jakarta.jdt.core.utils.IJDTUtils;
+import org.eclipse.lsp4jakarta.jdt.internal.core.ls.JDTUtilsLSImpl;
 
 public class JakartaVersionFinder {
 
@@ -19,6 +24,68 @@ public class JakartaVersionFinder {
             IPath path = entry.getPath();
             String line = path.toOSString();
             System.out.println("Classpath entry: " + line);
+
+            if (line.isEmpty() || !line.endsWith(".jar"))
+                continue;
+
+            Matcher matcher = jarPattern.matcher(line);
+            if (matcher.find()) {
+                String artifactName = matcher.group(1);
+                String version = matcher.group(2);
+
+                // Priority 1: Check for the Jakarta EE Platform base Jar
+                if (artifactName.contains("jakartaee-api") || artifactName.contains("jakartaee-web-api")
+                    || artifactName.contains("jakartaee-core-api")) {
+                    JakartaVersion v = getBaseVersion(version);
+                    if (v.getLevel() > detectedVersion.getLevel()) {
+                        detectedVersion = v;
+
+                    }
+                }
+
+                // Prority 2: check module version
+                JakartaVersion moduleVersion = getModuleVersion(artifactName, version);
+                if (moduleVersion.getLevel() > detectedVersion.getLevel()) {
+                    detectedVersion = moduleVersion;
+
+                }
+            }
+        }
+
+        if (detectedVersion.equals(JakartaVersion.UNKNOWN)) {
+            System.out.println("UNKNOWN version : fall back to JEE9");
+            detectedVersion = JakartaVersion.EE_9;
+        }
+
+        System.out.println("------------------------------------------------------------------");
+        System.out.println("Identified Platform Version: " + detectedVersion.getLabel() + "-" + detectedVersion.getLevel());
+        System.out.println("------------------------------------------------------------------");
+
+        return detectedVersion;
+    }
+
+    public static JakartaVersion analyzeClasspath(String uri) {
+
+        IJDTUtils utils = JDTUtilsLSImpl.getInstance();
+        ICompilationUnit unit = utils.resolveCompilationUnit(uri);
+        IJavaProject javaProject = unit.getJavaProject();
+        IClasspathEntry[] entries = null;
+        try {
+            entries = javaProject.getResolvedClasspath(true);
+        } catch (JavaModelException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        // Regex to match JAR names and versions: matches "name-version.jar"
+        Pattern jarPattern = Pattern.compile("([^/\\\\]+)-([0-9\\.]+[^/\\\\]*)\\.jar$");
+
+        JakartaVersion detectedVersion = JakartaVersion.UNKNOWN;
+
+        for (IClasspathEntry entry : entries) {
+            IPath path = entry.getPath();
+            String line = path.toOSString();
+            System.out.println("Classpath entry::: " + line);
 
             if (line.isEmpty() || !line.endsWith(".jar"))
                 continue;

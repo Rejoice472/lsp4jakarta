@@ -39,6 +39,11 @@ public class JakartaVersionManager {
         return projectVersionMap.get(projectName);
     }
 
+    public JakartaVersion getVersion(String projectName) {
+
+        return projectVersionMap.get(projectName);
+    }
+
     public boolean hasVersion(String projectName) {
         return projectVersionMap.containsKey(projectName);
     }
