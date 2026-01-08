@@ -33,6 +33,15 @@ import org.eclipse.lsp4jakarta.jdt.core.utils.IJDTUtils;
 public class JavaDiagnosticsContext extends AbstractJavaContext {
 
     private final DocumentFormat documentFormat;
+    private int jakartaVersion;
+
+    public int getJakartaVersion() {
+        return jakartaVersion;
+    }
+
+    public void setJakartaVersion(int jakartaVersion) {
+        this.jakartaVersion = jakartaVersion;
+    }
 
     private final JakartaJavaDiagnosticsSettings settings;
 
