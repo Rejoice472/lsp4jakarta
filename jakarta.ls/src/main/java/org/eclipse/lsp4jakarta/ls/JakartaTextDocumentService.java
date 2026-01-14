@@ -98,7 +98,8 @@ public class JakartaTextDocumentService implements TextDocumentService {
 
         return document.executeIfInJakartaProject((projectInfo, cancelChecker) -> {
             JakartaJavaCompletionParams javaParams = new JakartaJavaCompletionParams(params.getTextDocument().getUri(), params.getPosition());
-
+            // getting jakarta version from version manager.
+            int jakartaVersion = JakartaVersionManager.getInstance().getVersion(params.getTextDocument().getUri(), projectInfo.getClassPath()).getLevel();
             // get the completion capabilities from the java language server component
             CompletableFuture<JakartaJavaCompletionResult> javaParticipantCompletionsFuture = jakartaLanguageServer.getLanguageClient().getJavaCompletion(javaParams);
 
@@ -248,6 +249,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
         if (uris.isEmpty()) {
             return;
         }
+        // getting jakarta version from version manager.
         int jakartaVersion = JakartaVersionManager.getInstance().getVersion(uris.get(0), projectinfo.getClassPath()).getLevel();
         JakartaJavaDiagnosticsParams javaParams = new JakartaJavaDiagnosticsParams(uris, new JakartaJavaDiagnosticsSettings(null));
         javaParams.setJakartaVersion(jakartaVersion);
