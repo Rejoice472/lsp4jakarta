@@ -227,7 +227,8 @@ public class BeanValidationDiagnosticsParticipant implements IJavaDiagnosticsPar
                 // for that custom type (which could as well be a user made subtype)
 
                 else if (matchedAnnotation.equals(NOT_EMPTY) || matchedAnnotation.equals(SIZE)) {
-                    if (!(isSizeOrNonEmptyAllowed(declaringType, type))) {
+                    System.out.println("bean-jakarta-" + context.getJakartaVersion());
+                    if (!(isSizeOrNonEmptyAllowed(declaringType, type)) && context.getJakartaVersion() != 10) {
                         String message = isMethod ? Messages.getMessage("SizeOrNonEmptyAnnotationsMethod") : Messages.getMessage("SizeOrNonEmptyAnnotationsField");
                         diagnostics.add(context.createDiagnostic(uri, message, range, Constants.DIAGNOSTIC_SOURCE,
                                                                  matchedAnnotation, ErrorCode.InvalidAnnotationOnNonSizeMethodOrField,
