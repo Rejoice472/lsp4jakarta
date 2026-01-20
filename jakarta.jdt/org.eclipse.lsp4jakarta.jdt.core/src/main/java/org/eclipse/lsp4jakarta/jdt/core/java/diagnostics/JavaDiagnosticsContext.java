@@ -23,6 +23,8 @@ import org.eclipse.lsp4jakarta.commons.DocumentFormat;
 import org.eclipse.lsp4jakarta.commons.JakartaJavaDiagnosticsSettings;
 import org.eclipse.lsp4jakarta.jdt.core.java.AbstractJavaContext;
 import org.eclipse.lsp4jakarta.jdt.core.utils.IJDTUtils;
+import org.eclipse.lsp4jakarta.jdt.internal.version.JakartaDiagnostic;
+import org.eclipse.lsp4jakarta.jdt.internal.version.JakartaVersion;
 
 /**
  * Java diagnostics context for a given compilation unit.
@@ -84,6 +86,10 @@ public class JavaDiagnosticsContext extends AbstractJavaContext {
     public Diagnostic createDiagnostic(String uri, String message, Range range, String source, Object data,
                                        IJavaErrorCode code,
                                        DiagnosticSeverity severity) {
+    	
+    	if(!isDiagnosticsApplicable(code)) {
+    		return new Diagnostic();
+    	}
         Diagnostic diagnostic = new Diagnostic();
         diagnostic.setSource(source);
         diagnostic.setMessage(message);
@@ -97,5 +103,17 @@ public class JavaDiagnosticsContext extends AbstractJavaContext {
         }
         return diagnostic;
     }
+
+    /**
+     * isDiagnosticsApplicable
+     * @param code
+     * @return
+     */
+	private boolean isDiagnosticsApplicable(IJavaErrorCode code) {
+		JakartaVersion version = JakartaVersion.fromLevel(this.getJakartaVersion());
+        boolean isApplicable = JakartaDiagnostic.getByCodeOrNull(code.getCode()) != null ? 
+        		JakartaDiagnostic.getByCodeOrNull(code.getCode()).isApplicableTo(version) : false;
+		return isApplicable;
+	}
 
 }
