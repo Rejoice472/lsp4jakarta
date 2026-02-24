@@ -16,9 +16,14 @@ package org.eclipse.lsp4jakarta.ls;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -71,6 +76,16 @@ public class JakartaTextDocumentService implements TextDocumentService {
     private final JakartaTextDocuments documents;
 
     private ValidatorDelayer<JakartaTextDocument> validatorDelayer;
+
+    // Jakarta EE version management
+    private final Map<String, String> projectVersions = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<String>> versionRequestsInFlight = new ConcurrentHashMap<>();
+    private final Map<String, Object> projectLocks = new ConcurrentHashMap<>();
+    private final ExecutorService diagnosticsExecutor = Executors.newCachedThreadPool();
+
+    // Available Jakarta EE versions
+    private static final List<String> JAKARTA_VERSIONS = Arrays.asList(
+                                                                       "11.0", "10.0", "9.1", "9.0", "8.0");
 
     public JakartaTextDocumentService(JakartaLanguageServer jls, SharedSettings sharedSettings, JakartaTextDocuments jakartaTextDocuments) {
         this.jakartaLanguageServer = jls;
@@ -189,7 +204,138 @@ public class JakartaTextDocumentService implements TextDocumentService {
 
     @Override
     public void didOpen(DidOpenTextDocumentParams params) {
-        validate(documents.onDidOpenTextDocument(params), false);
+        JakartaTextDocument document = documents.onDidOpenTextDocument(params);
+
+        // Check if version selection feature is enabled
+        // if (jakartaLanguageServer.getCapabilityManager().getClientCapabilities().getExtendedClientCapabilities().isJakartaVersionSelector()) {
+        // Feature disabled - run diagnostics immediately (preserve existing behavior)
+        //   validate(document, false);
+        //   return;
+        //  }
+
+        // Feature enabled - handle version selection before diagnostics
+        handleVersionSelectionAndValidate(document);
+    }
+
+    /**
+     * Handles Jakarta EE version selection for a project and triggers validation.
+     * This method ensures that:
+     * 1. Only one version request is sent per project (even if multiple files open simultaneously)
+     * 2. The didOpen call returns immediately without blocking
+     * 3. All callbacks execute on a separate thread pool
+     * 4. The selected version is persisted to a .jakarta-version file in the project directory
+     * 5. Uses in-memory cache for fast access, with file as persistent storage
+     * 6. Validates all opened files in the project after version selection
+     *
+     * @param document The document that was opened
+     */
+    private void handleVersionSelectionAndValidate(JakartaTextDocument document) {
+        document.executeIfInJakartaProject((projectInfo, cancelChecker) -> {
+            // Get the project URI from projectInfo - this is the project-level identifier
+            String projectUri = projectInfo.getUri();
+            if (projectUri == null) {
+                // Project URI not available, skip version selection and run diagnostics directly
+                triggerValidationFor(Arrays.asList(document.getUri()));
+                return null;
+            }
+
+            // Get or create a lock object for this project
+            Object projectLock = projectLocks.computeIfAbsent(projectUri, k -> new Object());
+
+            synchronized (projectLock) {
+                // Check if version is already in memory cache
+                if (projectVersions.containsKey(projectUri)) {
+                    triggerValidationFor(Arrays.asList(document.getUri()));
+                    return null;
+                }
+
+                // Not in cache - try to load from file
+                String versionFromFile = JakartaVersionManager.readVersion(projectUri);
+                if (versionFromFile != null) {
+                    // Found in file - cache it and run diagnostics for all opened files
+                    projectVersions.put(projectUri, versionFromFile);
+                    LOGGER.info("Loaded Jakarta EE version " + versionFromFile + " from file for project: " + projectUri);
+                    triggerValidationFor(Arrays.asList(document.getUri()));
+                    return null;
+                }
+
+                // Check if a request is already in flight for this project
+                CompletableFuture<String> existingRequest = versionRequestsInFlight.get(projectUri);
+                if (existingRequest != null) {
+                    // Request in flight - queue validation for all opened files
+                    existingRequest.thenAcceptAsync(version -> {
+                        if (version != null) {
+                            triggerValidationForAll(null);
+                        }
+                        // If null (cancelled), do nothing - will retry on next open
+                    }, diagnosticsExecutor);
+                    return null;
+                }
+
+                // No version known and no request in flight - prompt for version selection
+                promptForVersionSelection(projectUri, "initial selection");
+            }
+
+            return null;
+        }, null, true);
+    }
+
+    /**
+     * Prompts the user to select a Jakarta EE version and handles the response.
+     * This is the common logic shared by both initial selection and version reset.
+     *
+     * @param projectUri The project URI
+     * @param context Context string for logging (e.g., "initial selection" or "reset")
+     */
+    private void promptForVersionSelection(String projectUri, String context) {
+        Object projectLock = projectLocks.computeIfAbsent(projectUri, k -> new Object());
+
+        // Prepare version selection request
+        Map<String, Object> params = new HashMap<>();
+        params.put("projectUri", projectUri);
+        params.put("versions", JAKARTA_VERSIONS);
+
+        CompletableFuture<String> versionRequest = jakartaLanguageServer.getLanguageClient().selectJakartaVersion(params);
+
+        // Store the in-flight request
+        versionRequestsInFlight.put(projectUri, versionRequest);
+
+        // Handle the response asynchronously
+        versionRequest.thenAcceptAsync(selectedVersion -> {
+            synchronized (projectLock) {
+                // Remove from in-flight map
+                versionRequestsInFlight.remove(projectUri);
+
+                if (selectedVersion != null) {
+                    // Store in memory cache
+                    projectVersions.put(projectUri, selectedVersion);
+
+                    // Persist to file
+                    boolean written = JakartaVersionManager.writeVersion(projectUri, selectedVersion);
+                    if (written) {
+                        LOGGER.info("Jakarta EE version " + selectedVersion +
+                                    " selected and saved for project (" + context + "): " + projectUri);
+                    } else {
+                        LOGGER.warning("Jakarta EE version " + selectedVersion +
+                                       " selected but failed to save to file (" + context + ") for project: " + projectUri);
+                    }
+
+                    // Re-validate all opened Jakarta files
+                    triggerValidationForAll(null);
+                    LOGGER.info("Triggered validation for all opened files (" + context + ")");
+                } else {
+                    // User cancelled
+                    LOGGER.info("Jakarta EE version selection cancelled (" + context + ") for project: " + projectUri);
+                }
+            }
+        }, diagnosticsExecutor).exceptionally(ex -> {
+            synchronized (projectLock) {
+                // Remove from in-flight map on error
+                versionRequestsInFlight.remove(projectUri);
+                LOGGER.severe("Error during version selection (" + context + ") for project " + projectUri + ": " + ex.getMessage());
+            }
+            return null;
+        });
     }
 
     @Override
@@ -272,6 +418,36 @@ public class JakartaTextDocumentService implements TextDocumentService {
     }
 
     /**
+     * Shutdown the text document service and clean up resources.
+     * Cancels all in-flight version selection requests, clears caches, and shuts down the executor.
+     * Note: Version files on disk are preserved for persistence across server restarts.
+     */
+    public void shutdown() {
+        // Cancel all in-flight version requests
+        versionRequestsInFlight.values().forEach(future -> {
+            if (!future.isDone()) {
+                future.cancel(true);
+            }
+        });
+        versionRequestsInFlight.clear();
+
+        // Clear in-memory caches
+        projectVersions.clear();
+        projectLocks.clear();
+
+        // Shutdown the diagnostics executor
+        diagnosticsExecutor.shutdown();
+        try {
+            if (!diagnosticsExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                diagnosticsExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            diagnosticsExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
      * Update shared settings from the client capabilities.
      *
      * @param capabilities the client capabilities
@@ -294,5 +470,49 @@ public class JakartaTextDocumentService implements TextDocumentService {
     public void updateTraceSettings(JakartaTraceSettings newTrace) {
         JakartaTraceSettings trace = sharedSettings.getTraceSettings();
         trace.update(newTrace);
+    }
+
+    /**
+     * Resets the Jakarta EE version for a project and triggers re-selection and re-validation.
+     * This method:
+     * 1. Clears the version from memory cache
+     * 2. Deletes the version file from disk
+     * 3. Prompts user to select a new version
+     * 4. Re-validates all opened Jakarta files after selection
+     *
+     * @param projectUri The project URI to reset version for
+     */
+    public void resetVersionAndRevalidate(String projectUri) {
+        if (projectUri == null || projectUri.isEmpty()) {
+            LOGGER.warning("Cannot reset version: project URI is null or empty");
+            return;
+        }
+
+        // Get or create a lock object for this project
+        Object projectLock = projectLocks.computeIfAbsent(projectUri, k -> new Object());
+
+        synchronized (projectLock) {
+            // Clear from memory cache
+            String oldVersion = projectVersions.remove(projectUri);
+            if (oldVersion != null) {
+                LOGGER.info("Cleared Jakarta EE version " + oldVersion + " from cache for project: " + projectUri);
+            }
+
+            // Delete version file from disk
+            boolean deleted = JakartaVersionManager.deleteVersion(projectUri);
+            if (deleted) {
+                LOGGER.info("Deleted version file for project: " + projectUri);
+            }
+
+            // Cancel any in-flight version requests for this project
+            CompletableFuture<String> existingRequest = versionRequestsInFlight.remove(projectUri);
+            if (existingRequest != null && !existingRequest.isDone()) {
+                existingRequest.cancel(true);
+                LOGGER.info("Cancelled in-flight version request for project: " + projectUri);
+            }
+
+            // Prompt user to select a new version (reuses common logic)
+            promptForVersionSelection(projectUri, "reset");
+        }
     }
 }

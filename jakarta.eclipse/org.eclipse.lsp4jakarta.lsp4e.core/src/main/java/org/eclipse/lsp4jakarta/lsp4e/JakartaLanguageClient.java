@@ -15,11 +15,13 @@ package org.eclipse.lsp4jakarta.lsp4e;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.lsp4e.LanguageClientImpl;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CompletionList;
@@ -41,6 +43,9 @@ import org.eclipse.lsp4jakarta.jdt.core.ProjectLabelManager;
 import org.eclipse.lsp4jakarta.jdt.core.PropertiesManagerForJava;
 import org.eclipse.lsp4jakarta.jdt.internal.core.ls.JDTUtilsLSImpl;
 import org.eclipse.lsp4jakarta.ls.api.JakartaLanguageClientAPI;
+import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.PlatformUI;
 
 public class JakartaLanguageClient extends LanguageClientImpl implements JakartaLanguageClientAPI {
 
@@ -161,6 +166,53 @@ public class JakartaLanguageClient extends LanguageClientImpl implements Jakarta
             } catch (JavaModelException e) {
                 return null;
             }
+        });
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public CompletableFuture<String> selectJakartaVersion(Map<String, Object> params) {
+        return CompletableFuture.supplyAsync(() -> {
+            final String[] selectedVersion = new String[1];
+
+            try {
+                // Extract parameters
+                String projectUri = (String) params.get("projectUri");
+                List<String> versions = (List<String>) params.get("versions");
+
+                if (versions == null || versions.isEmpty()) {
+                    return null;
+                }
+
+                // Convert version numbers to display strings
+                String[] versionLabels = versions.stream().map(v -> "Jakarta EE " + v).toArray(String[]::new);
+
+                // Run on UI thread
+                Display.getDefault().syncExec(() -> {
+                    try {
+                        Shell shell = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
+
+                        // Create a simple selection dialog
+                        MessageDialog dialog = new MessageDialog(shell, "Select Jakarta EE Version", null, "Please select the Jakarta EE version for this project:\n"
+                                                                                                           + projectUri, MessageDialog.QUESTION, 0, // default button index
+                                        versionLabels);
+
+                        int result = dialog.open();
+
+                        if (result >= 0 && result < versions.size()) {
+                            // Return the version number (not the display label)
+                            selectedVersion[0] = versions.get(result);
+                        }
+                        // If cancelled or closed, selectedVersion[0] remains null
+
+                    } catch (Exception e) {
+                    }
+                });
+
+            } catch (Exception e) {
+            }
+
+            return selectedVersion[0];
         });
     }
 }
