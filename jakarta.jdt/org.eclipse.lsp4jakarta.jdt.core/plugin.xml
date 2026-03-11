@@ -355,5 +355,13 @@
       <codeAction kind="quickfix"
                   targetDiagnostic="jakarta-cdi#InvalidDisposerMethodParamAnnotation"
                   class="org.eclipse.lsp4jakarta.jdt.internal.cdi.RemoveInvalidDisposerConflictParamAnnotationQuickFix" />
-   </extension>
+  </extension>
+  
+  <!-- Jakarta Version -->
+  <extension point="org.eclipse.lsp4jakarta.jdt.core.javaFeatureParticipants">
+     <diagnostics class="org.eclipse.lsp4jakarta.jdt.internal.version.VersionDiagnosticsParticipant" />
+     <codeAction kind="quickfix"
+                 targetDiagnostic="jakarta-version#VersionChange"
+                 class="org.eclipse.lsp4jakarta.jdt.internal.version.ResetVersionQuickFix" />
+  </extension>
 </plugin>

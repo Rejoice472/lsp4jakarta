@@ -171,26 +171,6 @@ public class JakartaTextDocumentService implements TextDocumentService {
 
     @Override
     public CompletableFuture<List<Either<Command, CodeAction>>> codeAction(CodeActionParams params) {
-        // Check if this is for the version change diagnostic
-        List<Either<Command, CodeAction>> versionChangeActions = createVersionChangeCodeAction(params);
-        if (!versionChangeActions.isEmpty()) {
-            // Prepare the JakartaJavaCodeActionParams for other diagnostics
-            JakartaJavaCodeActionParams codeActionParams = new JakartaJavaCodeActionParams();
-            codeActionParams.setTextDocument(params.getTextDocument());
-            codeActionParams.setRange(params.getRange());
-            codeActionParams.setContext(params.getContext());
-            codeActionParams.setResourceOperationSupported(jakartaLanguageServer.getCapabilityManager().getClientCapabilities().isResourceOperationSupported());
-            codeActionParams.setResolveSupported(jakartaLanguageServer.getCapabilityManager().getClientCapabilities().isCodeActionResolveSupported());
-
-            // Get Java code actions and combine with version change action
-            return jakartaLanguageServer.getLanguageClient().getJavaCodeAction(codeActionParams).thenApply(codeActions -> {
-                List<Either<Command, CodeAction>> allActions = new ArrayList<>(versionChangeActions);
-                allActions.addAll(codeActions.stream().map(ca -> Either.<Command, CodeAction> forRight(ca)).collect(Collectors.toList()));
-                return allActions;
-            });
-        }
-
-        // No version change diagnostic - proceed with normal code actions
         JakartaJavaCodeActionParams codeActionParams = new JakartaJavaCodeActionParams();
         codeActionParams.setTextDocument(params.getTextDocument());
         codeActionParams.setRange(params.getRange());
@@ -201,50 +181,6 @@ public class JakartaTextDocumentService implements TextDocumentService {
         return jakartaLanguageServer.getLanguageClient().getJavaCodeAction(codeActionParams).thenApply(codeActions -> {
             return codeActions.stream().map(ca -> Either.<Command, CodeAction> forRight(ca)).collect(Collectors.toList());
         });
-    }
-
-    /**
-     * Creates a code action for the "Change Jakarta version" diagnostic.
-     *
-     * @param params The code action parameters
-     * @return List containing the version change code action, or empty list if not applicable
-     */
-    private List<Either<Command, CodeAction>> createVersionChangeCodeAction(CodeActionParams params) {
-        List<Either<Command, CodeAction>> actions = new ArrayList<>();
-
-        // Check if any diagnostic is the version change diagnostic
-        for (Diagnostic diagnostic : params.getContext().getDiagnostics()) {
-            if ("JAKARTA_VERSION_CHANGE".equals(diagnostic.getCode().getLeft())) {
-                // Extract project URI from diagnostic data
-                String projectUri = null;
-
-                // Fallback: get project URI from document
-                JakartaTextDocument document = documents.get(params.getTextDocument().getUri());
-                if (document != null) {
-                    projectUri = document.getUri();
-                }
-
-                if (projectUri != null) {
-                    // Create command to reset version
-                    Command command = new Command();
-                    command.setTitle("Reset Jakarta version");
-                    command.setCommand("jakarta.resetVersion");
-                    command.setArguments(Arrays.asList(projectUri));
-
-                    // Create code action
-                    CodeAction codeAction = new CodeAction();
-                    codeAction.setTitle("Reset Jakarta version");
-                    codeAction.setKind(org.eclipse.lsp4j.CodeActionKind.QuickFix);
-                    codeAction.setDiagnostics(Arrays.asList(diagnostic));
-                    codeAction.setCommand(command);
-
-                    actions.add(Either.forRight(codeAction));
-                }
-                break; // Only one version change diagnostic per file
-            }
-        }
-
-        return actions;
     }
 
     @Override
@@ -459,53 +395,10 @@ public class JakartaTextDocumentService implements TextDocumentService {
                 return null;
             }
             for (PublishDiagnosticsParams diagnostic : diagnostics) {
-                // Add persistent version change diagnostic at line 0
-                addVersionChangeDiagnostic(diagnostic);
                 jakartaLanguageServer.getLanguageClient().publishDiagnostics(diagnostic);
             }
             return null;
         });
-    }
-
-    /**
-     * Adds a persistent "Change Jakarta version" diagnostic at the first line of the file.
-     * This diagnostic allows users to change the Jakarta EE version at any time.
-     *
-     * @param diagnosticParams The diagnostic parameters to modify
-     */
-    private void addVersionChangeDiagnostic(PublishDiagnosticsParams diagnosticParams) {
-        String uri = diagnosticParams.getUri();
-        LOGGER.info("Adding version change diagnostic for URI: " + uri);
-
-        JakartaTextDocument document = documents.get(uri);
-
-        if (document == null) {
-            LOGGER.warning("Document is null for URI: " + uri);
-            return;
-        }
-
-        // Create diagnostic at position (0,0)
-        Diagnostic versionDiagnostic = new Diagnostic();
-        versionDiagnostic.setRange(new org.eclipse.lsp4j.Range(new org.eclipse.lsp4j.Position(0, 0), new org.eclipse.lsp4j.Position(0, 0)));
-        versionDiagnostic.setSeverity(org.eclipse.lsp4j.DiagnosticSeverity.Warning);
-        versionDiagnostic.setCode("JAKARTA_VERSION_CHANGE");
-        versionDiagnostic.setSource("jakarta");
-        versionDiagnostic.setMessage("Change Jakarta version");
-
-        // Add data for the code action to identify this diagnostic
-        Map<String, Object> data = new HashMap<>();
-        data.put("projectUri", null);
-        versionDiagnostic.setData(data);
-
-        // Add to the beginning of the diagnostics list
-        List<Diagnostic> allDiagnostics = diagnosticParams.getDiagnostics();
-        if (allDiagnostics == null) {
-            allDiagnostics = new ArrayList<>();
-            diagnosticParams.setDiagnostics(allDiagnostics);
-        }
-        allDiagnostics.add(0, versionDiagnostic);
-
-        LOGGER.info("Version change diagnostic added. Total diagnostics: " + allDiagnostics.size());
     }
 
     protected void cleanDiagnostics() {
