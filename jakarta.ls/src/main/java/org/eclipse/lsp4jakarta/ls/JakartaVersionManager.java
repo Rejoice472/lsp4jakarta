@@ -40,20 +40,29 @@ public class JakartaVersionManager {
     private static final String VERSION_FILE_NAME = ".jakarta-version";
 
     // Available Jakarta EE versions
-    public static final List<String> JAKARTA_VERSIONS = Arrays.asList(
-                                                                      "11.0", "10.0", "9.1", "9.0", "8.0");
+    private static final List<String> JAKARTA_VERSIONS = Arrays.asList(
+                                                                       "11.0", "10.0", "9.1", "9.0", "8.0");
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /**
-     * Reads the Jakarta EE version from the project's version file.
+     * Returns the list of available Jakarta EE versions.
+     *
+     * @return an unmodifiable list of available Jakarta EE versions
+     */
+    public static List<String> getAvailableVersions() {
+        return JAKARTA_VERSIONS;
+    }
+
+    /**
+     * Reads the Jakarta EE version data from the project's version file.
      * Uses Java NIO for cross-platform file reading.
-     * Parses JSON format with version, versionType, and availableVersions.
+     * Parses JSON format with version, selectionMode, and availableVersions.
      *
      * @param projectUri The project URI
-     * @return The version string if found, null otherwise
+     * @return The VersionData object if found, null otherwise
      */
-    public static String readVersion(String projectUri) {
+    public static VersionData readVersionData(String projectUri) {
         if (projectUri == null) {
             return null;
         }
@@ -71,15 +80,16 @@ public class JakartaVersionManager {
             try {
                 VersionData versionData = GSON.fromJson(content, VersionData.class);
                 if (versionData != null && versionData.getVersion() != null && !versionData.getVersion().isEmpty()) {
-                    LOGGER.info("Read Jakarta EE version " + versionData.getVersion() + " from " + versionFilePath);
-                    return versionData.getVersion();
+                    LOGGER.info("Read Jakarta EE version data " + versionData.getVersion() + " from " + versionFilePath);
+                    return versionData;
                 }
             } catch (JsonSyntaxException e) {
                 // Fall back to plain text format for backward compatibility
                 String version = content.trim();
                 if (!version.isEmpty()) {
                     LOGGER.info("Read Jakarta EE version " + version + " from " + versionFilePath + " (legacy format)");
-                    return version;
+                    // Create VersionData from legacy format
+                    return new VersionData(version, "selected", getAvailableVersions());
                 }
             }
         } catch (IOException e) {
@@ -87,6 +97,19 @@ public class JakartaVersionManager {
         }
 
         return null;
+    }
+
+    /**
+     * Reads the Jakarta EE version from the project's version file.
+     * Uses Java NIO for cross-platform file reading.
+     * Parses JSON format with version, selectionMode, and availableVersions.
+     *
+     * @param projectUri The project URI
+     * @return The version string if found, null otherwise
+     */
+    public static String readVersion(String projectUri) {
+        VersionData versionData = readVersionData(projectUri);
+        return versionData != null ? versionData.getVersion() : null;
     }
 
     /**
@@ -98,8 +121,8 @@ public class JakartaVersionManager {
      * @param version The version to write
      * @return true if successful, false otherwise
      */
-    public static boolean writeVersion(String projectUri, String version) {
-        if (projectUri == null || version == null) {
+    public static boolean writeVersion(String projectUri, VersionData versionData) {
+        if (projectUri == null || versionData == null) {
             return false;
         }
 
@@ -115,9 +138,6 @@ public class JakartaVersionManager {
                 Files.createDirectories(parentDir);
             }
 
-            // Create version data object with JSON structure
-            VersionData versionData = new VersionData(version, "selected", JAKARTA_VERSIONS);
-
             // Convert to JSON
             String jsonContent = GSON.toJson(versionData);
 
@@ -126,8 +146,6 @@ public class JakartaVersionManager {
                         StandardOpenOption.CREATE,
                         StandardOpenOption.TRUNCATE_EXISTING,
                         StandardOpenOption.WRITE);
-
-            LOGGER.info("Wrote Jakarta EE version " + version + " to " + versionFilePath + " in JSON format");
             return true;
         } catch (IOException e) {
             LOGGER.severe("Failed to write Jakarta version file for project " + projectUri + ": " + e.getMessage());

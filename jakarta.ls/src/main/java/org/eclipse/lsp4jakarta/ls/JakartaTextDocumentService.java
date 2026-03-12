@@ -78,7 +78,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
     private ValidatorDelayer<JakartaTextDocument> validatorDelayer;
 
     // Jakarta EE version management
-    private final Map<String, String> projectVersions = new ConcurrentHashMap<>();
+    private final Map<String, VersionData> projectVersions = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<String>> versionRequestsInFlight = new ConcurrentHashMap<>();
     private final Map<String, Object> projectLocks = new ConcurrentHashMap<>();
     private final ExecutorService diagnosticsExecutor = Executors.newCachedThreadPool();
@@ -237,11 +237,11 @@ public class JakartaTextDocumentService implements TextDocumentService {
                 }
 
                 // Not in cache - try to load from file
-                String versionFromFile = JakartaVersionManager.readVersion(projectUri);
-                if (versionFromFile != null) {
+                VersionData versionData = JakartaVersionManager.readVersionData(projectUri);
+                if (versionData != null) {
                     // Found in file - cache it and run diagnostics for all opened files
-                    projectVersions.put(projectUri, versionFromFile);
-                    LOGGER.info("Loaded Jakarta EE version " + versionFromFile + " from file for project: " + projectUri);
+                    projectVersions.put(projectUri, versionData);
+                    LOGGER.info("Loaded Jakarta EE version " + versionData.getVersion() + " from file for project: " + projectUri);
                     triggerValidationFor(Arrays.asList(document.getUri()));
                     return null;
                 }
@@ -258,9 +258,19 @@ public class JakartaTextDocumentService implements TextDocumentService {
                     }, diagnosticsExecutor);
                     return null;
                 }
+                // check classpath and find the list of available jakarta versions
+                List<String> versions = JakartaVersionManager.getAvailableVersions();
+                if (versions != null && versions.size() == 1) {
+                    VersionData versionInfo = new VersionData(versions.get(0), "default", versions);
+                    boolean written = JakartaVersionManager.writeVersion(projectUri, versionInfo);
+                    projectVersions.put(projectUri, versionInfo);
+                    LOGGER.info("Loaded Jakarta EE version " + versionInfo.getVersion() + " from file for project: " + projectUri);
+                    triggerValidationFor(Arrays.asList(document.getUri()));
+                    return null;
+                }
 
                 // No version known and no request in flight - prompt for version selection
-                promptForVersionSelection(projectUri, "initial selection");
+                promptForVersionSelection(projectUri, "initial selection", versions);
             }
 
             return null;
@@ -274,13 +284,13 @@ public class JakartaTextDocumentService implements TextDocumentService {
      * @param projectUri The project URI
      * @param context Context string for logging (e.g., "initial selection" or "reset")
      */
-    private void promptForVersionSelection(String projectUri, String context) {
+    private void promptForVersionSelection(String projectUri, String context, List<String> versions) {
         Object projectLock = projectLocks.computeIfAbsent(projectUri, k -> new Object());
 
         // Prepare version selection request
         Map<String, Object> params = new HashMap<>();
         params.put("projectUri", projectUri);
-        params.put("versions", JakartaVersionManager.JAKARTA_VERSIONS);
+        params.put("versions", versions);
 
         CompletableFuture<String> versionRequest = jakartaLanguageServer.getLanguageClient().selectJakartaVersion(params);
 
@@ -294,11 +304,14 @@ public class JakartaTextDocumentService implements TextDocumentService {
                 versionRequestsInFlight.remove(projectUri);
 
                 if (selectedVersion != null) {
+                    // Create VersionData object
+                    VersionData versionData = new VersionData(selectedVersion, "selected", JakartaVersionManager.getAvailableVersions());
+
                     // Store in memory cache
-                    projectVersions.put(projectUri, selectedVersion);
+                    projectVersions.put(projectUri, versionData);
 
                     // Persist to file
-                    boolean written = JakartaVersionManager.writeVersion(projectUri, selectedVersion);
+                    boolean written = JakartaVersionManager.writeVersion(projectUri, versionData);
                     if (written) {
                         LOGGER.info("Jakarta EE version " + selectedVersion +
                                     " selected and saved for project (" + context + "): " + projectUri);
@@ -480,9 +493,9 @@ public class JakartaTextDocumentService implements TextDocumentService {
 
         synchronized (projectLock) {
             // Clear from memory cache
-            String oldVersion = projectVersions.remove(projectUri);
-            if (oldVersion != null) {
-                LOGGER.info("Cleared Jakarta EE version " + oldVersion + " from cache for project: " + projectUri);
+            VersionData oldVersionData = projectVersions.remove(projectUri);
+            if (oldVersionData != null) {
+                LOGGER.info("Cleared Jakarta EE version " + oldVersionData.getVersion() + " from cache for project: " + projectUri);
             }
 
             // Delete version file from disk
@@ -497,9 +510,19 @@ public class JakartaTextDocumentService implements TextDocumentService {
                 existingRequest.cancel(true);
                 LOGGER.info("Cancelled in-flight version request for project: " + projectUri);
             }
+            // check classpath and find the list of available jakarta versions
+            List<String> versions = JakartaVersionManager.getAvailableVersions();
+            if (versions != null && versions.size() == 1) {
+                VersionData versionInfo = new VersionData(versions.get(0), "default", versions);
+                boolean written = JakartaVersionManager.writeVersion(projectUri, versionInfo);
+                projectVersions.put(projectUri, versionInfo);
+                LOGGER.info("Loaded Jakarta EE version " + versionInfo.getVersion() + " from file for project: " + projectUri);
+                triggerValidationForAll(null);
+            } else {
+                // Prompt user to select a new version (reuses common logic)
+                promptForVersionSelection(projectUri, "reset", versions);
+            }
 
-            // Prompt user to select a new version (reuses common logic)
-            promptForVersionSelection(projectUri, "reset");
         }
     }
 }

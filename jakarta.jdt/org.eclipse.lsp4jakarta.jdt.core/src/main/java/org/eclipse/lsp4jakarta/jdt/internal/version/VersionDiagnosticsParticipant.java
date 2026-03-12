@@ -18,6 +18,7 @@ import java.util.List;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.Range;
@@ -34,6 +35,7 @@ import org.eclipse.lsp4jakarta.jdt.internal.core.ls.JDTUtilsLSImpl;
  */
 public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipant {
 
+
     @Override
     public List<Diagnostic> collectDiagnostics(JavaDiagnosticsContext context, IProgressMonitor monitor) throws CoreException {
         String uri = context.getUri();
@@ -45,21 +47,50 @@ public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipan
             return diagnostics;
         }
 
-        // Create range for the first line - from offset 0 with length to cover the line
-        // Using a reasonable length that will span across the first line
-        Range range = context.getUtils().toRange(unit, 0, 100);
+        // Calculate range from first char (0) to last char of first line
+        int firstLineLength = getFirstLineLength(unit);
+        Range range = context.getUtils().toRange(unit, 0, firstLineLength);
 
         Diagnostic versionDiagnostic = context.createDiagnostic(
                                                                 uri,
-                                                                "Update Jakarta EE project version",
+                                                                "Multiple jakarta EE versions exist for this project.",
                                                                 range,
                                                                 Constants.DIAGNOSTIC_SOURCE,
                                                                 ErrorCode.VersionChange,
-                                                                DiagnosticSeverity.Information);
+                                                                DiagnosticSeverity.Warning);
 
         diagnostics.add(versionDiagnostic);
 
         return diagnostics;
+    }
+
+    /**
+     * Gets the length of the first line in the compilation unit.
+     * Returns at least 1 to ensure a valid range even for empty first lines.
+     *
+     * @param unit the compilation unit
+     * @return the length of the first line (minimum 1)
+     */
+    private int getFirstLineLength(ICompilationUnit unit) {
+        try {
+            String source = unit.getSource();
+            if (source == null || source.isEmpty()) {
+                return 1;
+            }
+
+            // Find the first newline character
+            int newlineIndex = source.indexOf('\n');
+            if (newlineIndex == -1) {
+                // No newline found, return entire source length (at least 1)
+                return Math.max(1, source.length());
+            }
+
+            // Return length up to (but not including) the newline
+            // If first line is empty (newlineIndex == 0), return 1 to include the newline
+            return Math.max(1, newlineIndex);
+        } catch (JavaModelException e) {
+            return 1;
+        }
     }
 
 }
