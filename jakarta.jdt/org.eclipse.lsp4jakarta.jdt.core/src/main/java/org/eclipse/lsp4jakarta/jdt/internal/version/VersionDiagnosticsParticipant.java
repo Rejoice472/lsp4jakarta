@@ -29,8 +29,8 @@ import org.eclipse.lsp4jakarta.jdt.internal.core.ls.JDTUtilsLSImpl;
 /**
  * Jakarta version diagnostics participant.
  *
- * This participant adds a persistent "Change Jakarta version" diagnostic at the first line
- * of every Jakarta file, allowing users to change the Jakarta EE version at any time.
+ * This participant adds a persistent diagnostic at the first line of every Jakarta file,
+ * allowing users to update or configure the Jakarta EE version for the project.
  */
 public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipant {
 
@@ -51,7 +51,7 @@ public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipan
 
         Diagnostic versionDiagnostic = context.createDiagnostic(
                                                                 uri,
-                                                                "Change Jakarta version",
+                                                                "Update Jakarta EE project version",
                                                                 range,
                                                                 Constants.DIAGNOSTIC_SOURCE,
                                                                 ErrorCode.VersionChange,
@@ -63,5 +63,3 @@ public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipan
     }
 
 }
-
-// Made with Bob

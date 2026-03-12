@@ -83,10 +83,6 @@ public class JakartaTextDocumentService implements TextDocumentService {
     private final Map<String, Object> projectLocks = new ConcurrentHashMap<>();
     private final ExecutorService diagnosticsExecutor = Executors.newCachedThreadPool();
 
-    // Available Jakarta EE versions
-    private static final List<String> JAKARTA_VERSIONS = Arrays.asList(
-                                                                       "11.0", "10.0", "9.1", "9.0", "8.0");
-
     public JakartaTextDocumentService(JakartaLanguageServer jls, SharedSettings sharedSettings, JakartaTextDocuments jakartaTextDocuments) {
         this.jakartaLanguageServer = jls;
         this.sharedSettings = sharedSettings;
@@ -284,7 +280,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
         // Prepare version selection request
         Map<String, Object> params = new HashMap<>();
         params.put("projectUri", projectUri);
-        params.put("versions", JAKARTA_VERSIONS);
+        params.put("versions", JakartaVersionManager.JAKARTA_VERSIONS);
 
         CompletableFuture<String> versionRequest = jakartaLanguageServer.getLanguageClient().selectJakartaVersion(params);
 

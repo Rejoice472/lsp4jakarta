@@ -25,6 +25,7 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4jakarta.jdt.core.java.codeaction.IJavaCodeActionParticipant;
 import org.eclipse.lsp4jakarta.jdt.core.java.codeaction.JavaCodeActionContext;
 import org.eclipse.lsp4jakarta.jdt.core.java.codeaction.JavaCodeActionResolveContext;
+import org.eclipse.lsp4jakarta.jdt.core.utils.JDTJakartaUtils;
 
 /**
  * Quick fix for resetting the Jakarta EE version.
@@ -44,14 +45,14 @@ public class ResetVersionQuickFix implements IJavaCodeActionParticipant {
                                                      IProgressMonitor monitor) throws CoreException {
         List<CodeAction> codeActions = new ArrayList<>();
 
-        // Get the project URI from the context
-        String uri = context.getUri();
+        // Get the project URI (not the file URI) from the context
+        String projectUri = JDTJakartaUtils.getProjectURI(context.getJavaProject());
 
         // Create a command to reset the version
         Command command = new Command();
         command.setTitle("Reset Jakarta version");
         command.setCommand("jakarta.resetVersion");
-        command.setArguments(Arrays.asList(uri));
+        command.setArguments(Arrays.asList(projectUri));
 
         // Create the code action
         CodeAction codeAction = new CodeAction();
