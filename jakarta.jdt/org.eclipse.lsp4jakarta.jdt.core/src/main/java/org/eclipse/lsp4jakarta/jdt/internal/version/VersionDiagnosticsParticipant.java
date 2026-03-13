@@ -35,13 +35,22 @@ import org.eclipse.lsp4jakarta.jdt.internal.core.ls.JDTUtilsLSImpl;
  */
 public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipant {
 
-
     @Override
     public List<Diagnostic> collectDiagnostics(JavaDiagnosticsContext context, IProgressMonitor monitor) throws CoreException {
+        List<Diagnostic> diagnostics = new ArrayList<>();
+
+        // Get version information from settings
+        String selectedVersion = context.getSettings().getSelectedVersion();
+        List<String> availableVersions = context.getSettings().getAvailableVersions();
+
+        // Only show diagnostic if there are 2 or more available versions
+        if (availableVersions == null || availableVersions.size() <= 1) {
+            return diagnostics;
+        }
+
         String uri = context.getUri();
         IJDTUtils utils = JDTUtilsLSImpl.getInstance();
         ICompilationUnit unit = utils.resolveCompilationUnit(uri);
-        List<Diagnostic> diagnostics = new ArrayList<>();
 
         if (unit == null) {
             return diagnostics;
@@ -51,9 +60,13 @@ public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipan
         int firstLineLength = getFirstLineLength(unit);
         Range range = context.getUtils().toRange(unit, 0, firstLineLength);
 
+        // Create diagnostic message showing current version
+        String message = selectedVersion != null ? "Multiple jakarta EE versions exist for this project. current selected version is "
+                                                   + selectedVersion : "Multiple jakarta EE versions exist for this project.";
+
         Diagnostic versionDiagnostic = context.createDiagnostic(
                                                                 uri,
-                                                                "Multiple jakarta EE versions exist for this project.",
+                                                                message,
                                                                 range,
                                                                 Constants.DIAGNOSTIC_SOURCE,
                                                                 ErrorCode.VersionChange,

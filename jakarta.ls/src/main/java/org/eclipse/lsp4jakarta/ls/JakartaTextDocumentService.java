@@ -78,7 +78,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
     private ValidatorDelayer<JakartaTextDocument> validatorDelayer;
 
     // Jakarta EE version management
-    private final Map<String, VersionData> projectVersions = new ConcurrentHashMap<>();
+    private static final Map<String, VersionData> projectVersions = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<String>> versionRequestsInFlight = new ConcurrentHashMap<>();
     private final Map<String, Object> projectLocks = new ConcurrentHashMap<>();
     private final ExecutorService diagnosticsExecutor = Executors.newCachedThreadPool();
@@ -222,7 +222,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
             String projectUri = projectInfo.getUri();
             if (projectUri == null) {
                 // Project URI not available, skip version selection and run diagnostics directly
-                triggerValidationFor(Arrays.asList(document.getUri()));
+                triggerValidationFor(Arrays.asList(document.getUri()), null);
                 return null;
             }
 
@@ -232,7 +232,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
             synchronized (projectLock) {
                 // Check if version is already in memory cache
                 if (projectVersions.containsKey(projectUri)) {
-                    triggerValidationFor(Arrays.asList(document.getUri()));
+                    triggerValidationFor(Arrays.asList(document.getUri()), projectUri);
                     return null;
                 }
 
@@ -242,7 +242,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
                     // Found in file - cache it and run diagnostics for all opened files
                     projectVersions.put(projectUri, versionData);
                     LOGGER.info("Loaded Jakarta EE version " + versionData.getVersion() + " from file for project: " + projectUri);
-                    triggerValidationFor(Arrays.asList(document.getUri()));
+                    triggerValidationFor(Arrays.asList(document.getUri()), projectUri);
                     return null;
                 }
 
@@ -252,7 +252,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
                     // Request in flight - queue validation for all opened files
                     existingRequest.thenAcceptAsync(version -> {
                         if (version != null) {
-                            triggerValidationForAll(null);
+                            triggerValidationForAll(Set.of(projectUri));
                         }
                         // If null (cancelled), do nothing - will retry on next open
                     }, diagnosticsExecutor);
@@ -265,7 +265,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
                     boolean written = JakartaVersionManager.writeVersion(projectUri, versionInfo);
                     projectVersions.put(projectUri, versionInfo);
                     LOGGER.info("Loaded Jakarta EE version " + versionInfo.getVersion() + " from file for project: " + projectUri);
-                    triggerValidationFor(Arrays.asList(document.getUri()));
+                    triggerValidationForAll(Set.of(projectUri));
                     return null;
                 }
 
@@ -321,7 +321,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
                     }
 
                     // Re-validate all opened Jakarta files
-                    triggerValidationForAll(null);
+                    triggerValidationForAll(Set.of(projectUri));
                     LOGGER.info("Triggered validation for all opened files (" + context + ")");
                 } else {
                     // User cancelled
@@ -363,10 +363,11 @@ public class JakartaTextDocumentService implements TextDocumentService {
      * @param projectURIs list of project URIs filter and null otherwise.
      */
     private void triggerValidationForAll(Set<String> projectURIs) {
-        triggerValidationFor(documents.all().stream() //
-                        .filter(document -> projectURIs == null || projectURIs.contains(document.getProjectURI())) //
-                        .map(TextDocument::getUri) //
-                        .collect(Collectors.toList()));
+        String projectUri = (projectURIs != null && !projectURIs.isEmpty()) ? projectURIs.iterator().next() : null;
+
+        List<String> uris = documents.all().stream().map(TextDocument::getUri).collect(Collectors.toList());
+
+        triggerValidationFor(uris, projectUri);
     }
 
     /**
@@ -377,7 +378,8 @@ public class JakartaTextDocumentService implements TextDocumentService {
     private void triggerValidationFor(JakartaTextDocument document) {
         document.executeIfInJakartaProject((projectinfo, cancelChecker) -> {
             String uri = document.getUri();
-            triggerValidationFor(Arrays.asList(uri));
+            String projectUri = projectinfo != null ? projectinfo.getUri() : null;
+            triggerValidationFor(Arrays.asList(uri), projectUri);
             return null;
         }, null, true);
     }
@@ -386,13 +388,26 @@ public class JakartaTextDocumentService implements TextDocumentService {
      * Validate all given Java files uris.
      *
      * @param uris Java files uris to validate.
+     * @param projectUri The project URI for version information lookup (can be null).
      */
-    private void triggerValidationFor(List<String> uris) {
+    private void triggerValidationFor(List<String> uris, String projectUri) {
         if (uris.isEmpty()) {
             return;
         }
 
-        JakartaJavaDiagnosticsParams javaParams = new JakartaJavaDiagnosticsParams(uris, new JakartaJavaDiagnosticsSettings(null));
+        // Create diagnostics settings and populate with version information
+        JakartaJavaDiagnosticsSettings settings = new JakartaJavaDiagnosticsSettings(null);
+
+        // Get version information from the project URI
+        if (projectUri != null) {
+            VersionData versionData = projectVersions.get(projectUri);
+            if (versionData != null) {
+                settings.setSelectedVersion(versionData.getVersion());
+                settings.setAvailableVersions(versionData.getAvailableVersions());
+            }
+        }
+
+        JakartaJavaDiagnosticsParams javaParams = new JakartaJavaDiagnosticsParams(uris, settings);
 
         boolean markdownSupported = sharedSettings.getHoverSettings().isContentFormatSupported(MarkupKind.MARKDOWN);
         if (markdownSupported) {
@@ -517,7 +532,7 @@ public class JakartaTextDocumentService implements TextDocumentService {
                 boolean written = JakartaVersionManager.writeVersion(projectUri, versionInfo);
                 projectVersions.put(projectUri, versionInfo);
                 LOGGER.info("Loaded Jakarta EE version " + versionInfo.getVersion() + " from file for project: " + projectUri);
-                triggerValidationForAll(null);
+                triggerValidationForAll(Set.of(projectUri));
             } else {
                 // Prompt user to select a new version (reuses common logic)
                 promptForVersionSelection(projectUri, "reset", versions);
