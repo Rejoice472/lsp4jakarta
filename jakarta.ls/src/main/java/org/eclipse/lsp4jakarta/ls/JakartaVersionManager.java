@@ -41,7 +41,7 @@ public class JakartaVersionManager {
 
     // Available Jakarta EE versions
     private static final List<String> JAKARTA_VERSIONS = Arrays.asList(
-                                                                       "11.0", "10.0", "9.1", "9.0", "8.0");
+                                                                       "11.0", "10.0", "9.1", "9.0");
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
