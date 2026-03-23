@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.window.Window;
 import org.eclipse.lsp4e.LanguageClientImpl;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CompletionList;
@@ -184,24 +184,17 @@ public class JakartaLanguageClient extends LanguageClientImpl implements Jakarta
                     return null;
                 }
 
-                // Convert version numbers to display strings
-                String[] versionLabels = versions.stream().map(v -> "Jakarta EE " + v).toArray(String[]::new);
-
                 // Run on UI thread
                 Display.getDefault().syncExec(() -> {
                     try {
                         Shell shell = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
 
-                        // Create a simple selection dialog
-                        MessageDialog dialog = new MessageDialog(shell, "Select Jakarta EE Version", null, "Please select the Jakarta EE version for this project:\n"
-                                                                                                           + projectUri, MessageDialog.QUESTION, 0, // default button index
-                                        versionLabels);
+                        // Create the stylish dropdown dialog
+                        JakartaVersionSelectionDialog dialog = new JakartaVersionSelectionDialog(shell, projectUri, versions);
 
-                        int result = dialog.open();
-
-                        if (result >= 0 && result < versions.size()) {
-                            // Return the version number (not the display label)
-                            selectedVersion[0] = versions.get(result);
+                        // Open dialog and check result
+                        if (dialog.open() == Window.OK) {
+                            selectedVersion[0] = dialog.getSelectedVersion();
                         }
                         // If cancelled or closed, selectedVersion[0] remains null
 
