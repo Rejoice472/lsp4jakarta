@@ -50,13 +50,13 @@ public class ResetVersionQuickFix implements IJavaCodeActionParticipant {
 
         // Create a command to reset the version
         Command command = new Command();
-        command.setTitle("Reset Jakarta version");
+        command.setTitle("Reset Jakarta EE version");
         command.setCommand("jakarta.resetVersion");
         command.setArguments(Arrays.asList(projectUri));
 
         // Create the code action
         CodeAction codeAction = new CodeAction();
-        codeAction.setTitle("Change Jakarta version");
+        codeAction.setTitle("Change Jakarta EE version");
         codeAction.setKind(CodeActionKind.QuickFix);
         codeAction.setDiagnostics(Arrays.asList(diagnostic));
         codeAction.setCommand(command);

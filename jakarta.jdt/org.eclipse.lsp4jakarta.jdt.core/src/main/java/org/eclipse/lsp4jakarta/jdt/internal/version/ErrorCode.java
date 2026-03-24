@@ -18,7 +18,7 @@ import org.eclipse.lsp4jakarta.jdt.core.java.diagnostics.IJavaErrorCode;
  * Jakarta version error code.
  */
 public enum ErrorCode implements IJavaErrorCode {
-    VersionChange;
+    MultipleJakartaEEVersions;
 
     /**
      * {@inheritDoc}
@@ -29,5 +29,3 @@ public enum ErrorCode implements IJavaErrorCode {
     }
 
 }
-
-// Made with Bob

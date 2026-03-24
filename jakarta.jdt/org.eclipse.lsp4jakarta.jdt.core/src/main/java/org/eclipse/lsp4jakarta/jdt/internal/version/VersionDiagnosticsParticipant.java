@@ -61,15 +61,16 @@ public class VersionDiagnosticsParticipant implements IJavaDiagnosticsParticipan
         Range range = context.getUtils().toRange(unit, 0, firstLineLength);
 
         // Create diagnostic message showing current version
-        String message = selectedVersion != null ? "Multiple jakarta EE versions exist for this project. current selected version is "
-                                                   + selectedVersion : "Multiple jakarta EE versions exist for this project.";
+        String message = selectedVersion != null ? "Multiple Jakarta EE versions are present in this project. The current active version is "
+                                                   + selectedVersion + ".\nRecommend to use single version to avoid conflicts. "
+                                                   : "Multiple Jakarta EE versions are present in this project.";
 
         Diagnostic versionDiagnostic = context.createDiagnostic(
                                                                 uri,
                                                                 message,
                                                                 range,
                                                                 Constants.DIAGNOSTIC_SOURCE,
-                                                                ErrorCode.VersionChange,
+                                                                ErrorCode.MultipleJakartaEEVersions,
                                                                 DiagnosticSeverity.Warning);
 
         diagnostics.add(versionDiagnostic);
