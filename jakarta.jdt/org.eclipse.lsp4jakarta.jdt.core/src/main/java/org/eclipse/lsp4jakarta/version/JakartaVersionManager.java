@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
 
 public class JakartaVersionManager {
 
@@ -32,10 +33,10 @@ public class JakartaVersionManager {
         projectVersionMap.put(projectName, version);
     }
 
-    public JakartaVersion getVersion(String projectName, IClasspathEntry[] entries) {
-        if (!hasVersion(projectName)) {
-            this.setVersion(projectName, JakartaVersionFinder.analyzeClasspath(entries));
-        }
+    public JakartaVersion getVersion(String projectName,IJavaProject javaProject, IClasspathEntry[] entries) {
+        //if (!hasVersion(projectName)) {
+            this.setVersion(projectName, JakartaVersionFinder.analyzeClasspath(entries, javaProject));
+        //}
         return projectVersionMap.get(projectName);
     }
 

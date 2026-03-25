@@ -94,12 +94,12 @@ public class BeanValidationDiagnosticsParticipant implements IJavaDiagnosticsPar
             return diagnostics;
         }
 
-      //--------------------
+        //--------------------
         IJavaProject javaProject = context.getJavaProject();
         IClasspathEntry[] entries = javaProject.getResolvedClasspath(true);
-        JakartaVersion jakartaVersion = JakartaVersionManager.getInstance().getVersion(javaProject.getElementName(), entries);
+        JakartaVersion jakartaVersion = JakartaVersionManager.getInstance().getVersion(javaProject.getElementName(),javaProject, entries);
         //---------------------
-        
+
         IType[] alltypes;
         IField[] allFields;
         IAnnotation[] annotations;
