@@ -43,11 +43,11 @@ public class JakartaVersionFinder {
      * @return The detected Jakarta version 
      */
     public static JakartaVersion analyzeClasspath(IClasspathEntry[] entries) {
-        return analyzeClasspath(entries, DetectionStrategy.CLASS_SIGNATURE);
+        return analyzeClasspath(entries, DetectionStrategy.MANIFEST_THEN_FILENAME);
     }
     
     public static JakartaVersion analyzeClasspath(IClasspathEntry[] entries, IJavaProject javaProject) {
-        return analyzeClasspath(entries,javaProject, DetectionStrategy.CLASS_SIGNATURE);
+        return analyzeClasspath(entries,javaProject, DetectionStrategy.MANIFEST_THEN_FILENAME);
     }
 
     /**
