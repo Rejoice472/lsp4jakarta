@@ -65,6 +65,10 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
         for (IType type : types) {
             String[] typeAnnotations = Stream.of(type.getAnnotations()).map(annotation -> annotation.getElementName()).toArray(String[]::new);
             List<String> managedBeanAnnotations = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations, scopeFQNames);
+            boolean interceptorOrDecorator = !DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations, new String[] {
+                                                                                                                               Constants.INTERCEPTOR_FQ_NAME,
+                                                                                                                               Constants.DECORATOR_FQ_NAME
+            }).isEmpty();
             boolean isManagedBean = managedBeanAnnotations.size() > 0;
             boolean isDependent = managedBeanAnnotations.stream().anyMatch(annotation -> Constants.DEPENDENT_FQ_NAME.equals(annotation));
             boolean hasMultipleScopes = managedBeanAnnotations.size() > 1;
@@ -210,15 +214,28 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                 // see: https://jakarta.ee/specifications/cdi/3.0/jakarta-cdi-spec-3.0#
                 // observer_methods
                 Set<String> conflictParams = new HashSet<>();
+                Set<String> observesObservesAsyncParams = new HashSet<>();
                 for (ILocalVariable param : method.getParameters()) {
+
                     String[] annotationQualifiedNames = Stream.of(param.getAnnotations()).map(annotation -> annotation.getElementName()).toArray(String[]::new);
                     String[] conflictedParamAnnotations = Constants.INVALID_OBSERVES_OBSERVES_ASYNC_CONFLICTED_PARAMS.toArray(String[]::new);
                     Set<String> observesObservesAsync = new HashSet<>(DiagnosticUtils.getMatchedJavaElementNames(type, annotationQualifiedNames, conflictedParamAnnotations));
+                    if (!observesObservesAsync.isEmpty()) {
+                        observesObservesAsyncParams.add(param.getElementName());
+                    }
                     if (observesObservesAsync.equals(Constants.INVALID_OBSERVES_OBSERVES_ASYNC_CONFLICTED_PARAMS)) {
                         conflictParams.add(param.getElementName());
                     }
                 }
-                if (!conflictParams.isEmpty()) {
+                if (interceptorOrDecorator && !observesObservesAsyncParams.isEmpty()) {
+                    Range methodRange = PositionUtils.toNameRange(method, context.getUtils());
+                    diagnostics.add(context.createDiagnostic(uri,
+                                                             Messages.getMessage("InvalidInterceptorOrDecoratorWithObserverMethod"),
+                                                             methodRange,
+                                                             Constants.DIAGNOSTIC_SOURCE,
+                                                             ErrorCode.InvalidInterceptorOrDecoratorWithObserverMethod,
+                                                             DiagnosticSeverity.Error));
+                } else if (!conflictParams.isEmpty()) {
                     Range range = PositionUtils.toNameRange(method, context.getUtils());
                     diagnostics.add(context.createDiagnostic(uri,
                                                              Messages.getMessage("ManagedBeanObservesAndObservesAsyncParam", String.join(", ", conflictParams)), range,
