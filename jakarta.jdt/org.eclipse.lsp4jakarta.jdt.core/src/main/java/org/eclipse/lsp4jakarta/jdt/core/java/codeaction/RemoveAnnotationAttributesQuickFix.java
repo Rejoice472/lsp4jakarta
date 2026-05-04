@@ -26,13 +26,16 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.MemberValuePair;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4jakarta.commons.codeaction.CodeActionResolveData;
 import org.eclipse.lsp4jakarta.commons.codeaction.ICodeActionId;
+import org.eclipse.lsp4jakarta.jdt.core.ASTNodeUtils;
 import org.eclipse.lsp4jakarta.jdt.core.java.corrections.proposal.ChangeCorrectionProposal;
 import org.eclipse.lsp4jakarta.jdt.core.java.corrections.proposal.ModifyAnnotationProposal;
 
@@ -86,27 +89,65 @@ public abstract class RemoveAnnotationAttributesQuickFix implements IJavaCodeAct
         List<SingleVariableDeclaration> parameters = (List<SingleVariableDeclaration>) parentNode.parameters();
 
         for (SingleVariableDeclaration parameter : parameters) {
-
-            List<ASTNode> modifiers = (List<ASTNode>) parameter.getStructuralProperty(SingleVariableDeclaration.MODIFIERS2_PROPERTY);
-            String foundAnnotation = null;
-
-            for (ASTNode modifier : modifiers) {
-                if (modifier instanceof Annotation) {
-                    Annotation annotation = (Annotation) modifier;
-                    ITypeBinding typeBinding = annotation.resolveTypeBinding();
-                    if (typeBinding != null && Arrays.asList(this.annotations).stream().anyMatch(m -> m.equals(typeBinding.getQualifiedName()))) {
-                        foundAnnotation = typeBinding.getQualifiedName();
-                        break;
-                    }
-                }
-            }
-
-            if (foundAnnotation != null) {
-                createCodeAction(diagnostic, context, codeActions, parameter, foundAnnotation);
+            // Collect all matching annotations that have attributes to remove
+            List<String> annotationsToProcess = findAnnotationsWithAttributesToRemove(parameter);
+            
+            // Create a code action for each annotation
+            for (String annotation : annotationsToProcess) {
+                createCodeAction(diagnostic, context, codeActions, parameter, annotation);
             }
         }
 
         return codeActions;
+    }
+
+    /**
+     * Finds all annotations on a parameter that match the target annotations
+     * and have attributes that need to be removed.
+     *
+     * @param parameter The parameter to check
+     * @return List of qualified annotation names that have attributes to remove
+     */
+    private List<String> findAnnotationsWithAttributesToRemove(SingleVariableDeclaration parameter) {
+        List<String> result = new ArrayList<>();
+        
+        for (Annotation annotation : getParameterAnnotations(parameter)) {
+            ITypeBinding typeBinding = annotation.resolveTypeBinding();
+            if (typeBinding != null && isTargetAnnotation(typeBinding.getQualifiedName())
+                && hasAttributesToRemove(annotation)) {
+                result.add(typeBinding.getQualifiedName());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Gets all annotations from a parameter's modifiers.
+     *
+     * @param parameter The parameter to check
+     * @return List of annotations
+     */
+    @SuppressWarnings("unchecked")
+    private List<Annotation> getParameterAnnotations(SingleVariableDeclaration parameter) {
+        List<Annotation> annotations = new ArrayList<>();
+        List<ASTNode> modifiers = (List<ASTNode>) parameter.getStructuralProperty(SingleVariableDeclaration.MODIFIERS2_PROPERTY);
+        
+        for (ASTNode modifier : modifiers) {
+            if (ASTNodeUtils.isAnnotation(modifier)) {
+                annotations.add((Annotation) modifier);
+            }
+        }
+        return annotations;
+    }
+
+    /**
+     * Checks if the given annotation name matches any of the target annotations.
+     *
+     * @param annotationName The fully qualified annotation name
+     * @return true if it matches a target annotation
+     */
+    private boolean isTargetAnnotation(String annotationName) {
+        return Arrays.asList(this.annotations).contains(annotationName);
     }
 
     /**
@@ -176,19 +217,55 @@ public abstract class RemoveAnnotationAttributesQuickFix implements IJavaCodeAct
 
         for (SingleVariableDeclaration param : parameters) {
             if (param.getName().getIdentifier().equals(paramName)) {
-                List<ASTNode> modifiers = (List<ASTNode>) param.getStructuralProperty(SingleVariableDeclaration.MODIFIERS2_PROPERTY);
-                for (ASTNode modifier : modifiers) {
-                    if (modifier instanceof Annotation) {
-                        Annotation annotation = (Annotation) modifier;
-                        ITypeBinding typeBinding = annotation.resolveTypeBinding();
-                        if (typeBinding != null && Arrays.asList(annotations).stream().anyMatch(m -> m.equals(typeBinding.getQualifiedName()))) {
-                            return param.resolveBinding();
-                        }
+                for (Annotation annotation : getParameterAnnotations(param)) {
+                    ITypeBinding typeBinding = annotation.resolveTypeBinding();
+                    if (typeBinding != null && Arrays.asList(annotations).contains(typeBinding.getQualifiedName())) {
+                        return param.resolveBinding();
                     }
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * Checks if the given annotation has any of the attributes that need to be removed.
+     * This prevents code actions from appearing after attributes have already been removed.
+     * Subclasses can override shouldRemoveAttribute() to add value-based checks.
+     *
+     * @param annotation The annotation to check
+     * @return true if the annotation has at least one attribute to remove, false otherwise
+     */
+    @SuppressWarnings("unchecked")
+    protected boolean hasAttributesToRemove(Annotation annotation) {
+        if (!(annotation instanceof NormalAnnotation)) {
+            return false; // Only NormalAnnotations have name-value pairs
+        }
+
+        NormalAnnotation normalAnnotation = (NormalAnnotation) annotation;
+        List<MemberValuePair> values = normalAnnotation.values();
+
+        // Check if any target attribute exists and should be removed
+        for (String attributeToRemove : this.attributes) {
+            for (MemberValuePair mvp : values) {
+                if (mvp.getName().getFullyQualifiedName().equals(attributeToRemove)
+                    && shouldRemoveAttribute(mvp)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Determines if a specific attribute should be removed based on its value.
+     * Default: remove regardless of value. Override to add value checks.
+     *
+     * @param memberValuePair The member value pair to check
+     * @return true if the attribute should be removed
+     */
+    protected boolean shouldRemoveAttribute(MemberValuePair memberValuePair) {
+        return true;
     }
 
     /**
