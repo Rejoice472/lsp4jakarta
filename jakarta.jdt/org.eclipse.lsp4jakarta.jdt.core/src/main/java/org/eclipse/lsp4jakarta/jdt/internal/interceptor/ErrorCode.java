@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2023, 2026 IBM Corporation and others.
+* Copyright (c) 2026 IBM Corporation and others.
 *
 * This program and the accompanying materials are made available under the
 * terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,25 +8,18 @@
 * SPDX-License-Identifier: EPL-2.0
 *
 * Contributors:
-*     IBM Corporation - initial implementation
+*     IBM Corporation, Archana Iyer R - initial implementation
 *******************************************************************************/
-package org.eclipse.lsp4jakarta.jdt.internal.beanvalidation;
+package org.eclipse.lsp4jakarta.jdt.internal.interceptor;
 
 import org.eclipse.lsp4jakarta.jdt.core.java.diagnostics.IJavaErrorCode;
 
 /**
- * Bean validation error code.
+ * Interceptor error codes.
  */
 public enum ErrorCode implements IJavaErrorCode {
-    InvalidConstrainAnnotationOnStaticMethodOrField,
-    InvalidAnnotationOnNonBooleanMethodOrField,
-    InvalidAnnotationOnNonBigDecimalCharByteShortIntLongMethodOrField,
-    InvalidAnnotationOnNonDateTimeMethodOrField,
-    InvalidAnnotationOnNonMinMaxMethodOrField,
-    InvalidAnnotationOnNonPositiveMethodOrField,
-    InvalidAnnotationOnNonSizeMethodOrField,
-    InvalidAnnotationOnNonStringMethodOrField,
-    ConflictingConstraintAnnotations;
+    InvalidInterceptorNoArgsConstructorMissing,
+    InvalidInterceptorAnnotationOnAbstractClass;
 
     /**
      * {@inheritDoc}
@@ -35,5 +28,4 @@ public enum ErrorCode implements IJavaErrorCode {
     public String getCode() {
         return name();
     }
-
 }
