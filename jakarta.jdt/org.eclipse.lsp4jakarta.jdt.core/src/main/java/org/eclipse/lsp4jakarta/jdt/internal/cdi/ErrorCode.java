@@ -33,7 +33,8 @@ public enum ErrorCode implements IJavaErrorCode {
     InvalidInjectAnnotationOnMultipleMethodParams,
     InvalidObservesObservesAsyncMethodParams,
     InvalidMultipleObserverParams,
-    InvalidStatelessSessionBeanScope;
+    InvalidStatelessSessionBeanScope,
+    InvalidInterceptorOrDecorator;
 
     /**
      * {@inheritDoc}
