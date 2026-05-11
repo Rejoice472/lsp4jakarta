@@ -14,6 +14,7 @@
 package org.eclipse.lsp4jakarta.jdt.internal.cdi;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -550,20 +551,25 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
      * @param type the type
      * @param method the method to check
      * @return true if any parameter has a conditional observer annotation
-     * @throws JavaModelException
      */
     private boolean hasConditionalObserverAnnotation(IType type, IMethod method) {
         try {
-            for (ILocalVariable param : method.getParameters()) {
-                for (IAnnotation annotation : param.getAnnotations()) {
-                    if (isConditionalObserver(type, annotation)) {
-                        return true;
-                    }
+            return Arrays.stream(method.getParameters()).flatMap(param -> {
+                try {
+                    return Arrays.stream(param.getAnnotations());
+                } catch (JavaModelException e) {
+                    return Stream.empty();
                 }
-            }
+            }).anyMatch(annotation -> {
+                try {
+                    return isConditionalObserver(type, annotation);
+                } catch (JavaModelException e) {
+                    return false;
+                }
+            });
         } catch (JavaModelException e) {
-            LOGGER.log(Level.SEVERE, "Error occured while checking ConditionalObserverAnnotation", e);
+            LOGGER.log(Level.SEVERE, "Error occurred while checking ConditionalObserverAnnotation", e);
+            return false;
         }
-        return false;
     }
 }
