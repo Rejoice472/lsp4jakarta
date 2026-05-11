@@ -300,7 +300,8 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                                                                                  new String[] { Constants.STATELESS_FQ_NAME }).size() > 0;
                 boolean isClassGeneric = type.getTypeParameters().length != 0;
                 Range range = PositionUtils.toNameRange(type, context.getUtils());
-
+                validateSingletonSessionBean(context, uri, diagnostics, type, typeAnnotations, managedBeanAnnotations,
+                                             range);
                 // A stateless session bean must belong to the @Dependent scope only
                 // If it has multiple scopes, it's an error
                 if (isStateless && (!isDependent || hasMultipleScopes)) {
@@ -402,6 +403,36 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
         }
 
         return diagnostics;
+    }
+
+    /**
+     * validateSingletonSessionBean
+     * Singleton session bean scope validation
+     * A singleton session bean must be annotated with either @ApplicationScoped or @Dependent.
+     * If a singleton bean declares any other scope, the container must treat it as a definition error.
+     *
+     * @param context
+     * @param uri
+     * @param diagnostics
+     * @param type
+     * @param typeAnnotations
+     * @param managedBeanAnnotations
+     * @param range
+     */
+    private void validateSingletonSessionBean(JavaDiagnosticsContext context, String uri, List<Diagnostic> diagnostics,
+                                              IType type, String[] typeAnnotations, List<String> managedBeanAnnotations, Range range) {
+        boolean isSingletonSessionBean = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations,
+                                                                                    new String[] { Constants.SINGLETON_FQ_NAME }).size() > 0;
+        if (isSingletonSessionBean) {
+            boolean hasInvalidSingletonScope = managedBeanAnnotations.stream().anyMatch(annotation -> !Constants.APPLICATION_SCOPED_FQ_NAME.equals(annotation)
+                                                                                                      && !Constants.DEPENDENT_FQ_NAME.equals(annotation));
+            if (hasInvalidSingletonScope) {
+                diagnostics.add(context.createDiagnostic(uri,
+                                                         Messages.getMessage("SingletonSessionBeanInvalidScope"), range,
+                                                         Constants.DIAGNOSTIC_SOURCE, (new Gson().toJsonTree(managedBeanAnnotations)),
+                                                         ErrorCode.InvalidSingletonSessionBeanScope, DiagnosticSeverity.Error));
+            }
+        }
     }
 
     private void invalidParamsCheck(JavaDiagnosticsContext context, String uri, ICompilationUnit unit,
