@@ -65,14 +65,19 @@ public class JakartaSnippetRegistryTest {
     }
 
     /**
-     * Jakarta EJB snippets - @MessageDriven
+     * Jakarta EJB snippets - @MessageDriven, Timer Service (programmatic)
      */
     @Test
     public void ejbSnippetsTest() {
         Optional<Snippet> ejbSnippet = findByPrefix("ejb_messagedriven_bean", registry);
         assertTrue("ejb_messagedriven_bean Java snippet is not present in SnippetRegistry", ejbSnippet.isPresent());
 
+        Optional<Snippet> ejbTimerProgrammaticSnippet = findByPrefix("ejb_timer_programmatic", registry);
+        assertTrue("ejb_timer_programmatic Java snippet is not present in SnippetRegistry", ejbTimerProgrammaticSnippet.isPresent());
+
         snippetsContextTest(ejbSnippet, "jakarta.jms.MessageListener",
+                            JavaCursorContextKind.IN_EMPTY_FILE);
+        snippetsContextTest(ejbTimerProgrammaticSnippet, "jakarta.ejb.TimerService",
                             JavaCursorContextKind.IN_EMPTY_FILE);
 
     }
@@ -271,6 +276,18 @@ public class JakartaSnippetRegistryTest {
         snippetsContextTest(diQualifierAnnotationSnippet, "jakarta.inject.Qualifier",
                             JavaCursorContextKind.IN_EMPTY_FILE);
         snippetsContextTest(diScopeAnnotationSnippet, "jakarta.inject.Scope",
+                            JavaCursorContextKind.IN_EMPTY_FILE);
+    }
+
+    /**
+     * Jakarta Faces snippet test - faces_behavior
+     */
+    @Test
+    public void FacesSnippetsTest() {
+        Optional<Snippet> facesBehaviorSnippet = findByPrefix("faces_behavior", registry);
+        assertTrue("faces_behavior Java snippet is not present in SnippetRegistry", facesBehaviorSnippet.isPresent());
+
+        snippetsContextTest(facesBehaviorSnippet, "jakarta.faces.component.behavior.ClientBehaviorBase",
                             JavaCursorContextKind.IN_EMPTY_FILE);
     }
 
