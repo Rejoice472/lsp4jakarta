@@ -65,10 +65,6 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
         for (IType type : types) {
             String[] typeAnnotations = Stream.of(type.getAnnotations()).map(annotation -> annotation.getElementName()).toArray(String[]::new);
             List<String> managedBeanAnnotations = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations, scopeFQNames);
-            boolean interceptorOrDecorator = !DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations, new String[] {
-                                                                                                                               Constants.INTERCEPTOR_FQ_NAME,
-                                                                                                                               Constants.DECORATOR_FQ_NAME
-            }).isEmpty();
             boolean isManagedBean = managedBeanAnnotations.size() > 0;
             boolean isDependent = managedBeanAnnotations.stream().anyMatch(annotation -> Constants.DEPENDENT_FQ_NAME.equals(annotation));
             boolean hasMultipleScopes = managedBeanAnnotations.size() > 1;
@@ -235,19 +231,7 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                         paramsWithObserverAnnotations.add(param.getElementName());
                     }
                 }
-                // Interceptors and decorators must not have normal scopes (ApplicationScoped, SessionScoped, etc.)
-                // They should only use @Dependent scope
-                if (interceptorOrDecorator) {
-                    List<String> foundInvalidScopes = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations,
-                                                                                                 Constants.INVALID_INTERCEPTOR_DECORATOR_SCOPES);
-                    if (!foundInvalidScopes.isEmpty()) {
-                    	Range range = PositionUtils.toNameRange(type, context.getUtils());
-                        diagnostics.add(context.createDiagnostic(uri,
-                                                                 Messages.getMessage("InterceptorOrDecoratorWithIllegalScope"), range,
-                                                                 Constants.DIAGNOSTIC_SOURCE, null,
-                                                                 ErrorCode.InvalidInterceptorOrDecorator, DiagnosticSeverity.Error));
-                    }
-                }
+
                 // Report error if a parameter has both annotations on it
                 if (!conflictParams.isEmpty()) {
                     Range range = PositionUtils.toNameRange(method, context.getUtils());
@@ -311,6 +295,11 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
             }
 
             if (isManagedBean) {
+                boolean interceptorOrDecorator = !DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations,
+                                                                                             new String[] {
+                                                                                                            Constants.INTERCEPTOR_FQ_NAME,
+                                                                                                            Constants.DECORATOR_FQ_NAME }).isEmpty();
+
                 // Check if the class is a stateless session bean
                 boolean isStateless = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations,
                                                                                  new String[] { Constants.STATELESS_FQ_NAME }).size() > 0;
@@ -347,6 +336,18 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                                                              Messages.getMessage("ScopeTypeAnnotationsManagedBean"), range,
                                                              Constants.DIAGNOSTIC_SOURCE, (new Gson().toJsonTree(managedBeanAnnotations)),
                                                              ErrorCode.InvalidNumberOfScopedAnnotationsByManagedBean, DiagnosticSeverity.Error));
+                }
+                // Interceptors and decorators must not have normal scopes (ApplicationScoped, SessionScoped, etc.)
+                // They should only use @Dependent scope
+                if (interceptorOrDecorator) {
+                    List<String> foundInvalidScopes = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations,
+                                                                                                 Constants.INVALID_INTERCEPTOR_DECORATOR_SCOPES);
+                    if (!foundInvalidScopes.isEmpty()) {
+                        diagnostics.add(context.createDiagnostic(uri,
+                                                                 Messages.getMessage("InterceptorOrDecoratorWithIllegalScope"), range,
+                                                                 Constants.DIAGNOSTIC_SOURCE, null,
+                                                                 ErrorCode.InvalidInterceptorOrDecorator, DiagnosticSeverity.Error));
+                    }
                 }
 
             }

@@ -67,7 +67,6 @@ public class Constants {
                                                                           "jakarta.enterprise.context.ApplicationScoped",
                                                                           "jakarta.enterprise.context.SessionScoped",
                                                                           "jakarta.enterprise.context.ConversationScoped",
-                                                                          "jakarta.enterprise.context.RequestScoped",
-                                                                          "jakarta.inject.Singleton"
+                                                                          "jakarta.enterprise.context.RequestScoped"
     };
 }
