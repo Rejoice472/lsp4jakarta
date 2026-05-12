@@ -54,41 +54,42 @@ public class InterceptorDecoratorTest extends BaseJakartaTest {
         diagnosticsParams.setUris(Arrays.asList(uri));
 
         // Invalid: @Interceptor with @ApplicationScoped
-        Diagnostic interceptorWithAppScoped = d(15, 24, 63,
+        Diagnostic interceptorWithAppScoped = d(12, 13, 39,
                                                 "Interceptors and decorators must be annotated with the @Dependent scope. Any other scope is invalid.",
                                                 DiagnosticSeverity.Error, "jakarta-cdi", "InvalidInterceptorOrDecorator");
 
         // Invalid: @Decorator with @RequestScoped
-        Diagnostic decoratorWithReqScoped = d(21, 24, 57,
+        Diagnostic decoratorWithReqScoped = d(18, 6, 39,
                                               "Interceptors and decorators must be annotated with the @Dependent scope. Any other scope is invalid.",
                                               DiagnosticSeverity.Error, "jakarta-cdi", "InvalidInterceptorOrDecorator");
 
         // Invalid: @Interceptor with @Dependent and @SessionScoped (has invalid scope)
         // This triggers TWO diagnostics
-        Diagnostic interceptorWithMultipleScopes = d(40, 24, 60,
+        Diagnostic interceptorWithMultipleScopes = d(37, 6, 42,
                                                      "Interceptors and decorators must be annotated with the @Dependent scope. Any other scope is invalid.",
                                                      DiagnosticSeverity.Error, "jakarta-cdi", "InvalidInterceptorOrDecorator");
 
         // Second diagnostic for having multiple scopes
-        Diagnostic interceptorMultipleScopesError = d(40, 24, 60,
+        Diagnostic interceptorMultipleScopesError = d(37, 6, 42,
                                                       "Scope type annotations must be specified by a managed bean class at most once.",
                                                       DiagnosticSeverity.Error, "jakarta-cdi", "InvalidNumberOfScopedAnnotationsByManagedBean");
         interceptorMultipleScopesError.setData(new Gson().toJsonTree(Arrays.asList("jakarta.enterprise.context.Dependent", "jakarta.enterprise.context.SessionScoped")));
 
-        // Diagnostics are returned in reverse line order (40, 21, 15)
-        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, interceptorWithMultipleScopes,
-                              interceptorMultipleScopesError, decoratorWithReqScoped, interceptorWithAppScoped);
+        // Diagnostics are returned in reverse line order (37, 18, 12)
+        // For line 37, InvalidNumberOfScopedAnnotationsByManagedBean comes before InvalidInterceptorOrDecorator
+        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, interceptorMultipleScopesError,
+                              interceptorWithMultipleScopes, decoratorWithReqScoped, interceptorWithAppScoped);
 
         // Test quick fix for @Interceptor with @ApplicationScoped - replace with @Dependent
         JakartaJavaCodeActionParams interceptorAppScopedParams = createCodeActionParams(uri, interceptorWithAppScoped);
-        TextEdit interceptorAppScopedEdit = te(13, 4, 15, 4, "@Dependent\n\t");
+        TextEdit interceptorAppScopedEdit = te(10, 0, 12, 0, "@Dependent\n");
         CodeAction interceptorAppScopedAction = ca(uri, "Replace current scope with @Dependent",
                                                    interceptorWithAppScoped, interceptorAppScopedEdit);
         assertJavaCodeAction(interceptorAppScopedParams, IJDT_UTILS, interceptorAppScopedAction);
 
         // Test quick fix for @Decorator with @RequestScoped - replace with @Dependent
         JakartaJavaCodeActionParams decoratorReqScopedParams = createCodeActionParams(uri, decoratorWithReqScoped);
-        TextEdit decoratorReqScopedEdit = te(19, 4, 21, 4, "@Dependent\n\t");
+        TextEdit decoratorReqScopedEdit = te(16, 0, 17, 14, "@Dependent");
         CodeAction decoratorReqScopedAction = ca(uri, "Replace current scope with @Dependent", decoratorWithReqScoped,
                                                  decoratorReqScopedEdit);
         assertJavaCodeAction(decoratorReqScopedParams, IJDT_UTILS, decoratorReqScopedAction);
@@ -96,7 +97,7 @@ public class InterceptorDecoratorTest extends BaseJakartaTest {
         // Test quick fix for @Interceptor with multiple scopes - replace with @Dependent
         JakartaJavaCodeActionParams interceptorMultiScopesParams = createCodeActionParams(uri,
                                                                                           interceptorWithMultipleScopes);
-        TextEdit interceptorMultiScopesEdit = te(37, 4, 40, 4, "@Dependent\n\t");
+        TextEdit interceptorMultiScopesEdit = te(34, 0, 36, 14, "@Dependent");
         CodeAction interceptorMultiScopesAction = ca(uri, "Replace current scope with @Dependent",
                                                      interceptorWithMultipleScopes, interceptorMultiScopesEdit);
         assertJavaCodeAction(interceptorMultiScopesParams, IJDT_UTILS, interceptorMultiScopesAction);
