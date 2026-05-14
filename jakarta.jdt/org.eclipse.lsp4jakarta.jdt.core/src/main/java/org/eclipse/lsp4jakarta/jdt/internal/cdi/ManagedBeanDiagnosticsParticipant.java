@@ -241,7 +241,7 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                         paramsWithObserverAnnotations.add(param.getElementName());
                     }
                 }
-                if (interceptorOrDecorator && !observesObservesAsyncParams.isEmpty()) {
+                if (interceptorOrDecorator && !paramsWithObserverAnnotations.isEmpty()) {
                     Range methodRange = PositionUtils.toNameRange(method, context.getUtils());
                     diagnostics.add(context.createDiagnostic(uri,
                                                              Messages.getMessage("InvalidInterceptorOrDecoratorWithObserverMethod"),
