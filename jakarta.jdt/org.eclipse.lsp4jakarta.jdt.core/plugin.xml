@@ -276,14 +276,19 @@
                   class="org.eclipse.lsp4jakarta.jdt.internal.servlet.CompleteServletAnnotationQuickFix" />
       <codeAction kind="quickfix"
                   targetDiagnostic="jakarta-servlet#WebServletAnnotationAttributeConflict"
-                  class="org.eclipse.lsp4jakarta.jdt.internal.servlet.CompleteServletAnnotationQuickFix" />  
+                  class="org.eclipse.lsp4jakarta.jdt.internal.servlet.CompleteServletAnnotationQuickFix" />
 
       <codeAction kind="quickfix"
                   targetDiagnostic="jakarta-servlet#WebServletAnnotatedClassDoesNotExtendHttpServlet"
-                  class="org.eclipse.lsp4jakarta.jdt.internal.servlet.InsertExtendsClauseToExtendHttpServletQuickFix" />  
+                  class="org.eclipse.lsp4jakarta.jdt.internal.servlet.InsertExtendsClauseToExtendHttpServletQuickFix" />
       <codeAction kind="quickfix"
                   targetDiagnostic="jakarta-servlet#WebServletAnnotatedClassUnknownSuperTypeDoesNotExtendHttpServlet"
-                  class="org.eclipse.lsp4jakarta.jdt.internal.servlet.InsertExtendsClauseToExtendHttpServletQuickFix" />                            
+                  class="org.eclipse.lsp4jakarta.jdt.internal.servlet.InsertExtendsClauseToExtendHttpServletQuickFix" />
+
+      <diagnostics class="org.eclipse.lsp4jakarta.jdt.internal.servlet.SecurityDiagnosticsParticipant" />
+      <codeAction kind="quickfix"
+                  targetDiagnostic="jakarta-servlet#DeclareRolesOnNonServletClass"
+                  class="org.eclipse.lsp4jakarta.jdt.internal.servlet.InsertExtendsClauseToExtendHttpServletQuickFix" />
    </extension>
    
    <!-- CDI -->
@@ -305,6 +310,12 @@
                   targetDiagnostic="jakarta-cdi#InvalidGenericManagedBeanClassWithNoDependentScope"
                   class="org.eclipse.lsp4jakarta.jdt.internal.cdi.ManagedBeanQuickFix" />
       <codeAction kind="quickfix"
+                  targetDiagnostic="jakarta-cdi#InvalidStatelessSessionBeanScope"
+                  class="org.eclipse.lsp4jakarta.jdt.internal.cdi.RemoveStatelessAnnotationQuickFix" />
+      <codeAction kind="quickfix"
+                  targetDiagnostic="jakarta-cdi#InvalidStatelessSessionBeanScope"
+                  class="org.eclipse.lsp4jakarta.jdt.internal.cdi.ManagedBeanQuickFix" />
+      <codeAction kind="quickfix"
                   targetDiagnostic="jakarta-cdi#InvalidFieldWithProducesAndInjectAnnotations"
                   class="org.eclipse.lsp4jakarta.jdt.internal.cdi.RemoveProducesAndInjectAnnotationsQuickFix" />
       <codeAction kind="quickfix"
@@ -316,6 +327,12 @@
       <codeAction kind="quickfix"
                   targetDiagnostic="jakarta-cdi#InvalidManagedBeanWithInvalidConstructor"
                   class="org.eclipse.lsp4jakarta.jdt.internal.cdi.InsertDefaultProtectedConstructorToMBeanQuickFix" />
+      <codeAction kind="quickfix"
+                  targetDiagnostic="jakarta-cdi#InvalidSingletonSessionBeanScope"
+                  class="org.eclipse.lsp4jakarta.jdt.internal.cdi.RemoveSingletonAnnotationQuickFix" />
+      <codeAction kind="quickfix"
+                  targetDiagnostic="jakarta-cdi#InvalidSingletonSessionBeanScope"
+                  class="org.eclipse.lsp4jakarta.jdt.internal.cdi.ManagedBeanQuickFix" />
       <codeAction kind="quickfix"
                   targetDiagnostic="jakarta-cdi#InvalidManagedBeanWithInvalidConstructor"
                   class="org.eclipse.lsp4jakarta.jdt.internal.cdi.InsertDefaultPublicConstructorToMBeanQuickFix" />
@@ -359,4 +376,9 @@
                   targetDiagnostic="jakarta-cdi#InvalidMultipleObserverParams"
                   class="org.eclipse.lsp4jakarta.jdt.internal.cdi.RemoveMultipleObserverParamsQuickFix" />
   </extension>
+   
+   <!-- Interceptor -->
+   <extension point="org.eclipse.lsp4jakarta.jdt.core.javaFeatureParticipants">
+      <diagnostics class="org.eclipse.lsp4jakarta.jdt.internal.interceptor.InterceptorDiagnosticsParticipant" />
+   </extension>
 </plugin>

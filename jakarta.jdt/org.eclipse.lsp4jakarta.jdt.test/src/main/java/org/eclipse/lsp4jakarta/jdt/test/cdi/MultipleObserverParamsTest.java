@@ -50,16 +50,16 @@ public class MultipleObserverParamsTest extends BaseJakartaTest {
         diagnosticsParams.setUris(Arrays.asList(uri));
 
         // Invalid: Two parameters, each with @Observes
-        Diagnostic d1 = d(15, 16, 34,
-                          "A method cannot have more than one parameter annotated with @Observes or @ObservesAsync.",
-                          DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
+       Diagnostic twoObserves = d(15, 16, 34,
+                                   "Parameters event1, event2 are annotated with @Observes or @ObservesAsync, but a method cannot contain more than one such parameter.",
+                                   DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
 
         // Invalid: One parameter with @Observes, another with @ObservesAsync
-        Diagnostic d2 = d(19, 16, 47,
-                          "A method cannot have more than one parameter annotated with @Observes or @ObservesAsync.",
-                          DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
+        Diagnostic observesAndObservesAsync = d(19, 16, 47,
+                                                "Parameters event1, event2 are annotated with @Observes or @ObservesAsync, but a method cannot contain more than one such parameter.",
+                                                DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
 
-        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, d1, d2);
+        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, twoObserves, observesAndObservesAsync);
 
         JakartaJavaCodeActionParams codeActionParams1 = createCodeActionParams(uri, d1);
         TextEdit te1 = te(15, 35, 15, 45, "");
