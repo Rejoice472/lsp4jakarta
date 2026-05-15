@@ -50,7 +50,7 @@ public class MultipleObserverParamsTest extends BaseJakartaTest {
         diagnosticsParams.setUris(Arrays.asList(uri));
 
         // Invalid: Two parameters, each with @Observes
-       Diagnostic twoObserves = d(15, 16, 34,
+        Diagnostic twoObserves = d(15, 16, 34,
                                    "Parameters event1, event2 are annotated with @Observes or @ObservesAsync, but a method cannot contain more than one such parameter.",
                                    DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
 
@@ -61,18 +61,18 @@ public class MultipleObserverParamsTest extends BaseJakartaTest {
 
         assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, twoObserves, observesAndObservesAsync);
 
-        JakartaJavaCodeActionParams codeActionParams1 = createCodeActionParams(uri, d1);
+        JakartaJavaCodeActionParams codeActionParams1 = createCodeActionParams(uri, twoObserves);
         TextEdit te1 = te(15, 35, 15, 45, "");
-        CodeAction ca1 = ca(uri, "Remove the '@Observes' modifier from parameter 'event1'", d1, te1);
+        CodeAction ca1 = ca(uri, "Remove the '@Observes' modifier from parameter 'event1'", twoObserves, te1);
         TextEdit te2 = te(15, 60, 15, 70, "");
-        CodeAction ca2 = ca(uri, "Remove the '@Observes' modifier from parameter 'event2'", d1, te2);
+        CodeAction ca2 = ca(uri, "Remove the '@Observes' modifier from parameter 'event2'", twoObserves, te2);
 
         assertJavaCodeAction(codeActionParams1, IJDT_UTILS, ca1, ca2);
-        JakartaJavaCodeActionParams codeActionParams2 = createCodeActionParams(uri, d2);
+        JakartaJavaCodeActionParams codeActionParams2 = createCodeActionParams(uri, observesAndObservesAsync);
         TextEdit te3 = te(19, 48, 19, 58, "");
-        CodeAction ca3 = ca(uri, "Remove the '@Observes' modifier from parameter 'event1'", d2, te3);
+        CodeAction ca3 = ca(uri, "Remove the '@Observes' modifier from parameter 'event1'", observesAndObservesAsync, te3);
         TextEdit te4 = te(19, 73, 19, 88, "");
-        CodeAction ca4 = ca(uri, "Remove the '@ObservesAsync' modifier from parameter 'event2'", d2, te4);
+        CodeAction ca4 = ca(uri, "Remove the '@ObservesAsync' modifier from parameter 'event2'", observesAndObservesAsync, te4);
 
         assertJavaCodeAction(codeActionParams2, IJDT_UTILS, ca3, ca4);
     }
