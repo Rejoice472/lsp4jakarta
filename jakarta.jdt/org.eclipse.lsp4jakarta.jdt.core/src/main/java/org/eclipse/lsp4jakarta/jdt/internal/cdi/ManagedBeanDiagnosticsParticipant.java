@@ -238,40 +238,36 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                     }
                 }
 
-                // Report error if a parameter has both annotations on it
                 if (!conflictParams.isEmpty()) {
+                    // Report error if a parameter has both annotations on it
                     Range range = PositionUtils.toNameRange(method, context.getUtils());
                     diagnostics.add(context.createDiagnostic(uri,
                                                              Messages.getMessage("ManagedBeanObservesAndObservesAsyncParam", String.join(", ", conflictParams)), range,
                                                              Constants.DIAGNOSTIC_SOURCE, null,
                                                              ErrorCode.InvalidObservesObservesAsyncMethodParams, DiagnosticSeverity.Error));
-                }
-
-                // Check for conditional observer methods on @Dependent scoped beans
-                // Beans with scope @Dependent may not have conditional observer methods.
-                // If a bean with scope @Dependent has an observer method declared notifyObserver=IF_EXISTS,
-                // the container automatically detects the problem and treats it as a definition error.
-                if (isDependent) {
-                    if (hasConditionalObserverAnnotation(type, method)) {
-                        Range range = PositionUtils.toNameRange(method, context.getUtils());
-                        diagnostics.add(context.createDiagnostic(
-                                                                 uri,
-                                                                 Messages.getMessage("ManagedBeanDependentScopeConditionalObserver", method.getElementName()),
-                                                                 range,
-                                                                 Constants.DIAGNOSTIC_SOURCE,
-                                                                 null,
-                                                                 ErrorCode.InvalidDependentScopeWithConditionalObserver,
-                                                                 DiagnosticSeverity.Error));
-                    }
-                }
-                // Report error if method has more than one parameter with observer annotations
-                // (even if each parameter has only one type of observer annotation)
-                if (paramsWithObserverAnnotations.size() > 1) {
+                } else if (paramsWithObserverAnnotations.size() > 1) {
+                    // Report error if method has more than one parameter with observer annotations
+                    // (even if each parameter has only one type of observer annotation)
                     Range range = PositionUtils.toNameRange(method, context.getUtils());
                     diagnostics.add(context.createDiagnostic(uri,
                                                              Messages.getMessage("ManagedBeanMultipleObserverParams", String.join(", ", paramsWithObserverAnnotations)), range,
                                                              Constants.DIAGNOSTIC_SOURCE, null,
                                                              ErrorCode.InvalidMultipleObserverParams, DiagnosticSeverity.Error));
+                } else if (isDependent && hasConditionalObserverAnnotation(type, method)) {
+                    // Check for conditional observer methods on @Dependent scoped beans
+                    // Beans with scope @Dependent may not have conditional observer methods.
+                    // If a bean with scope @Dependent has an observer method declared notifyObserver=IF_EXISTS,
+                    // the container automatically detects the problem and treats it as a definition error.
+
+                    Range range = PositionUtils.toNameRange(method, context.getUtils());
+                    diagnostics.add(context.createDiagnostic(
+                                                             uri,
+                                                             Messages.getMessage("ManagedBeanDependentScopeConditionalObserver", method.getElementName()),
+                                                             range,
+                                                             Constants.DIAGNOSTIC_SOURCE,
+                                                             null,
+                                                             ErrorCode.InvalidDependentScopeWithConditionalObserver,
+                                                             DiagnosticSeverity.Error));
                 }
             }
 

@@ -469,15 +469,11 @@ public class ManagedBeanTest extends BaseJakartaTest {
                                                                 "A CDI method must not have parameter(s): name, name1 annotated with @Observes and @ObservesAsync.",
                                                                 DiagnosticSeverity.Error, "jakarta-cdi", "InvalidObservesObservesAsyncMethodParams");
 
-        Diagnostic multipleObserverParams3 = d(58, 18, 52,
-                                               "Parameters name, name1 are annotated with @Observes or @ObservesAsync, but a method cannot contain more than one such parameter.",
-                                               DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
-
         assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, producesWithDisposes, producesWithObserves, producesWithObservesAsync,
                               producesWithDisposesAndObserves, disposerWithObserves, multipleObserverParams1, producesWithObservesAndObservesAsync,
                               producesWithDisposesAndObservesAsync, disposerWithObservesAsync, multipleObserverParams2, producesWithAllThreeAnnotations,
                               disposerWithObservesAndObservesAsync, producesObservesAndObservesAsyncOnSameParam, producesWithAllAnnotationsOnSameParam,
-                              disposerWithAllAnnotationsOnSameParam, observesAndObservesAsyncOnMultipleParams, multipleObserverParams3);
+                              disposerWithAllAnnotationsOnSameParam, observesAndObservesAsyncOnMultipleParams);
 
         JakartaJavaCodeActionParams codeActionParams1 = createCodeActionParams(uri, producesWithDisposes);
 
