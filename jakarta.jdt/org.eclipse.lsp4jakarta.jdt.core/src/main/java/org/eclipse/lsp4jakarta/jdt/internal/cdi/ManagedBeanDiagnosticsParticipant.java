@@ -68,9 +68,8 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
         IType[] types = unit.getAllTypes();
         String[] scopeFQNames = Constants.SCOPE_FQ_NAMES.toArray(String[]::new);
         for (IType type : types) {
-            List<String> managedBeanAnnotations = DiagnosticUtils.getMatchedJavaElementNames(type,
-                                                                                             Stream.of(type.getAnnotations()).map(annotation -> annotation.getElementName()).toArray(String[]::new),
-                                                                                             scopeFQNames);
+            String[] typeAnnotations = Stream.of(type.getAnnotations()).map(annotation -> annotation.getElementName()).toArray(String[]::new);
+            List<String> managedBeanAnnotations = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations, scopeFQNames);
             boolean isManagedBean = managedBeanAnnotations.size() > 0;
             boolean isDependent = managedBeanAnnotations.stream().anyMatch(annotation -> Constants.DEPENDENT_FQ_NAME.equals(annotation));
             boolean hasMultipleScopes = managedBeanAnnotations.size() > 1;
@@ -215,15 +214,30 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                 //
                 // see: https://jakarta.ee/specifications/cdi/3.0/jakarta-cdi-spec-3.0#
                 // observer_methods
+                //
+                // Two scenarios to detect:
+                // 1. A single parameter with both @Observes AND @ObservesAsync
+                // 2. Multiple parameters where each has at least one of @Observes or @ObservesAsync
                 Set<String> conflictParams = new HashSet<>();
+                List<String> paramsWithObserverAnnotations = new ArrayList<>();
+
                 for (ILocalVariable param : method.getParameters()) {
                     String[] annotationQualifiedNames = Stream.of(param.getAnnotations()).map(annotation -> annotation.getElementName()).toArray(String[]::new);
                     String[] conflictedParamAnnotations = Constants.INVALID_OBSERVES_OBSERVES_ASYNC_CONFLICTED_PARAMS.toArray(String[]::new);
                     Set<String> observesObservesAsync = new HashSet<>(DiagnosticUtils.getMatchedJavaElementNames(type, annotationQualifiedNames, conflictedParamAnnotations));
+
+                    // Scenario 1: Check if this parameter has both @Observes AND @ObservesAsync
                     if (observesObservesAsync.equals(Constants.INVALID_OBSERVES_OBSERVES_ASYNC_CONFLICTED_PARAMS)) {
                         conflictParams.add(param.getElementName());
                     }
+
+                    // Scenario 2: Track parameters that have at least one observer annotation
+                    if (!observesObservesAsync.isEmpty()) {
+                        paramsWithObserverAnnotations.add(param.getElementName());
+                    }
                 }
+
+                // Report error if a parameter has both annotations on it
                 if (!conflictParams.isEmpty()) {
                     Range range = PositionUtils.toNameRange(method, context.getUtils());
                     diagnostics.add(context.createDiagnostic(uri,
@@ -248,6 +262,15 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                                                                  ErrorCode.InvalidDependentScopeWithConditionalObserver,
                                                                  DiagnosticSeverity.Error));
                     }
+                }
+                // Report error if method has more than one parameter with observer annotations
+                // (even if each parameter has only one type of observer annotation)
+                if (paramsWithObserverAnnotations.size() > 1) {
+                    Range range = PositionUtils.toNameRange(method, context.getUtils());
+                    diagnostics.add(context.createDiagnostic(uri,
+                                                             Messages.getMessage("ManagedBeanMultipleObserverParams", String.join(", ", paramsWithObserverAnnotations)), range,
+                                                             Constants.DIAGNOSTIC_SOURCE, null,
+                                                             ErrorCode.InvalidMultipleObserverParams, DiagnosticSeverity.Error));
                 }
             }
 
@@ -293,11 +316,23 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
             }
 
             if (isManagedBean) {
+                // Check if the class is a stateless session bean
+                boolean isStateless = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations,
+                                                                                 new String[] { Constants.STATELESS_FQ_NAME }).size() > 0;
                 boolean isClassGeneric = type.getTypeParameters().length != 0;
                 Range range = PositionUtils.toNameRange(type, context.getUtils());
+                validateSingletonSessionBean(context, uri, diagnostics, type, typeAnnotations, managedBeanAnnotations,
+                                             range);
+                // A stateless session bean must belong to the @Dependent scope only
+                // If it has multiple scopes, it's an error
+                if (isStateless && (!isDependent || hasMultipleScopes)) {
+                    diagnostics.add(context.createDiagnostic(uri,
+                                                             Messages.getMessage("StatelessSessionBeanWithIllegalScope"), range,
+                                                             Constants.DIAGNOSTIC_SOURCE, null,
+                                                             ErrorCode.InvalidStatelessSessionBeanScope, DiagnosticSeverity.Error));
 
-                // The @Dependent annotation must be the only scope defined by a Managed bean class of generic type
-                if (isClassGeneric && (!isDependent || hasMultipleScopes)) {
+                    // The @Dependent annotation must be the only scope defined by a Managed bean class of generic type
+                } else if (isClassGeneric && (!isDependent || hasMultipleScopes)) {
                     diagnostics.add(context.createDiagnostic(uri,
                                                              Messages.getMessage("ManagedBeanGenericType"), range,
                                                              Constants.DIAGNOSTIC_SOURCE, null,
@@ -389,6 +424,36 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
         }
 
         return diagnostics;
+    }
+
+    /**
+     * validateSingletonSessionBean
+     * Singleton session bean scope validation
+     * A singleton session bean must be annotated with either @ApplicationScoped or @Dependent.
+     * If a singleton bean declares any other scope, the container must treat it as a definition error.
+     *
+     * @param context
+     * @param uri
+     * @param diagnostics
+     * @param type
+     * @param typeAnnotations
+     * @param managedBeanAnnotations
+     * @param range
+     */
+    private void validateSingletonSessionBean(JavaDiagnosticsContext context, String uri, List<Diagnostic> diagnostics,
+                                              IType type, String[] typeAnnotations, List<String> managedBeanAnnotations, Range range) {
+        boolean isSingletonSessionBean = DiagnosticUtils.getMatchedJavaElementNames(type, typeAnnotations,
+                                                                                    new String[] { Constants.SINGLETON_FQ_NAME }).size() > 0;
+        if (isSingletonSessionBean) {
+            boolean hasInvalidSingletonScope = managedBeanAnnotations.stream().anyMatch(annotation -> !Constants.APPLICATION_SCOPED_FQ_NAME.equals(annotation)
+                                                                                                      && !Constants.DEPENDENT_FQ_NAME.equals(annotation));
+            if (hasInvalidSingletonScope) {
+                diagnostics.add(context.createDiagnostic(uri,
+                                                         Messages.getMessage("SingletonSessionBeanInvalidScope"), range,
+                                                         Constants.DIAGNOSTIC_SOURCE, (new Gson().toJsonTree(managedBeanAnnotations)),
+                                                         ErrorCode.InvalidSingletonSessionBeanScope, DiagnosticSeverity.Error));
+            }
+        }
     }
 
     private void invalidParamsCheck(JavaDiagnosticsContext context, String uri, ICompilationUnit unit,
@@ -516,20 +581,25 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
      * @param type the type
      * @param method the method to check
      * @return true if any parameter has a conditional observer annotation
-     * @throws JavaModelException
      */
     private boolean hasConditionalObserverAnnotation(IType type, IMethod method) {
         try {
-            for (ILocalVariable param : method.getParameters()) {
-                for (IAnnotation annotation : param.getAnnotations()) {
-                    if (isConditionalObserver(type, annotation)) {
-                        return true;
-                    }
+            return Arrays.stream(method.getParameters()).flatMap(param -> {
+                try {
+                    return Arrays.stream(param.getAnnotations());
+                } catch (JavaModelException e) {
+                    return Stream.empty();
                 }
-            }
+            }).anyMatch(annotation -> {
+                try {
+                    return isConditionalObserver(type, annotation);
+                } catch (JavaModelException e) {
+                    return false;
+                }
+            });
         } catch (JavaModelException e) {
-            LOGGER.log(Level.SEVERE, "Error occured while checking ConditionalObserverAnnotation", e);
+            LOGGER.log(Level.SEVERE, "Error occurred while checking ConditionalObserverAnnotation", e);
+            return false;
         }
-        return false;
     }
 }
