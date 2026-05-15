@@ -91,7 +91,7 @@ public abstract class RemoveAnnotationAttributesQuickFix implements IJavaCodeAct
         for (SingleVariableDeclaration parameter : parameters) {
             // Collect all matching annotations that have attributes to remove
             List<String> annotationsToProcess = findAnnotationsWithAttributesToRemove(parameter);
-            
+
             // Create a code action for each annotation
             for (String annotation : annotationsToProcess) {
                 createCodeAction(diagnostic, context, codeActions, parameter, annotation);
@@ -110,7 +110,7 @@ public abstract class RemoveAnnotationAttributesQuickFix implements IJavaCodeAct
      */
     private List<String> findAnnotationsWithAttributesToRemove(SingleVariableDeclaration parameter) {
         List<String> result = new ArrayList<>();
-        
+
         for (Annotation annotation : getParameterAnnotations(parameter)) {
             ITypeBinding typeBinding = annotation.resolveTypeBinding();
             if (typeBinding != null && isTargetAnnotation(typeBinding.getQualifiedName())
@@ -131,7 +131,7 @@ public abstract class RemoveAnnotationAttributesQuickFix implements IJavaCodeAct
     private List<Annotation> getParameterAnnotations(SingleVariableDeclaration parameter) {
         List<Annotation> annotations = new ArrayList<>();
         List<ASTNode> modifiers = (List<ASTNode>) parameter.getStructuralProperty(SingleVariableDeclaration.MODIFIERS2_PROPERTY);
-        
+
         for (ASTNode modifier : modifiers) {
             if (ASTNodeUtils.isAnnotation(modifier)) {
                 annotations.add((Annotation) modifier);
