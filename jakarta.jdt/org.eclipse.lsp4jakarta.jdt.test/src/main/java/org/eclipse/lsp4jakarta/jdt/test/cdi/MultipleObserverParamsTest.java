@@ -59,7 +59,12 @@ public class MultipleObserverParamsTest extends BaseJakartaTest {
                                                 "Parameters event1, event2 are annotated with @Observes or @ObservesAsync, but a method cannot contain more than one such parameter.",
                                                 DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
 
-        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, twoObserves, observesAndObservesAsync);
+        // Invalid: Three parameters - one with @Observes, two with @ObservesAsync
+        Diagnostic threeObserves = d(23, 16, 36,
+                                     "Parameters event1, event2, event3 are annotated with @Observes or @ObservesAsync, but a method cannot contain more than one such parameter.",
+                                     DiagnosticSeverity.Error, "jakarta-cdi", "InvalidMultipleObserverParams");
+
+        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, twoObserves, observesAndObservesAsync, threeObserves);
 
         JakartaJavaCodeActionParams codeActionParams1 = createCodeActionParams(uri, twoObserves);
         TextEdit te1 = te(15, 35, 15, 45, "");
@@ -75,5 +80,15 @@ public class MultipleObserverParamsTest extends BaseJakartaTest {
         CodeAction ca4 = ca(uri, "Remove the '@ObservesAsync' modifier from parameter 'event2'", observesAndObservesAsync, te4);
 
         assertJavaCodeAction(codeActionParams2, IJDT_UTILS, ca3, ca4);
+
+        JakartaJavaCodeActionParams codeActionParams3 = createCodeActionParams(uri, threeObserves);
+        TextEdit te5 = te(23, 37, 23, 47, "");
+        CodeAction ca5 = ca(uri, "Remove the '@Observes' modifier from parameter 'event1'", threeObserves, te5);
+        TextEdit te6 = te(23, 62, 23, 77, "");
+        CodeAction ca6 = ca(uri, "Remove the '@ObservesAsync' modifier from parameter 'event2'", threeObserves, te6);
+        TextEdit te7 = te(23, 92, 23, 107, "");
+        CodeAction ca7 = ca(uri, "Remove the '@ObservesAsync' modifier from parameter 'event3'", threeObserves, te7);
+
+        assertJavaCodeAction(codeActionParams3, IJDT_UTILS, ca5, ca6, ca7);
     }
 }

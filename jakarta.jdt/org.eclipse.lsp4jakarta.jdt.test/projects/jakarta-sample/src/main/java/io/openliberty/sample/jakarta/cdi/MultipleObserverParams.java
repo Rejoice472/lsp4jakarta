@@ -20,5 +20,9 @@ public class MultipleObserverParams {
     public void invalidObservesAndObservesAsync(@Observes String event1, @ObservesAsync String event2) {
         System.out.println("Events: " + event1 + ", " + event2);
     }
+
+    public void invalidThreeObserves(@Observes String event1, @ObservesAsync String event2, @ObservesAsync String event3) {
+        System.out.println("Events: " + event1 + ", " + event2 + ", " + event3);
+    }
 }
 
