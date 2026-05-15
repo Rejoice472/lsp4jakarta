@@ -14,6 +14,7 @@
 package org.eclipse.lsp4jakarta.jdt.internal.cdi;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
