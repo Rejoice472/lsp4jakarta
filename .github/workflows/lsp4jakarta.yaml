@@ -1,0 +1,31 @@
+name: Java CI - LSP4Jakarta
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, lsp4jakarta-0.2.7-integration-branch]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 17
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+      - name: Build LSP4Jakarta JDT LS Extension with Maven
+        working-directory: ./jakarta.jdt
+        run: xvfb-run -a ./mvnw clean install -B --file pom.xml
+      - name: Build LSP4Jakarta Language Server with Maven
+        working-directory: ./jakarta.ls
+        run: ./mvnw clean install -B --file pom.xml
+      - name: Build LSP4Jakarta Eclipse client plug-in with Maven
+        working-directory: ./jakarta.eclipse
+        run: xvfb-run -a ./mvnw clean install -B --file pom.xml
+          
