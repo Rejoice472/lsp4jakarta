@@ -25,6 +25,7 @@ public class Constants {
     public static final String PRODUCES_FQ_NAME = "jakarta.enterprise.inject.Produces";
     public static final String INJECT_FQ_NAME = "jakarta.inject.Inject";
     public static final String NAMED_FQ_NAME = "jakarta.inject.Named";
+    public static final String SPECIALIZES_FQ_NAME = "jakarta.enterprise.inject.Specializes";
     public static final String DISPOSES_FQ_NAME = "jakarta.enterprise.inject.Disposes";
     public static final String OBSERVES_FQ_NAME = "jakarta.enterprise.event.Observes";
     public static final String OBSERVES_ASYNC_FQ_NAME = "jakarta.enterprise.event.ObservesAsync";
@@ -40,6 +41,7 @@ public class Constants {
     public static final String INTERCEPTOR_FQ_NAME = "jakarta.interceptor.Interceptor";
     public static final String DECORATOR_FQ_NAME = "jakarta.decorator.Decorator";
     public static final String DELEGATE_FQ_NAME = "jakarta.decorator.Delegate";
+    public static final String SERIALIZABLE_FQ_NAME = "java.io.Serializable";
     public static final String CONSTRUCTOR_DIAGNOSTIC_CODE = "InvalidManagedBeanConstructor";
 
     public static final String DIAGNOSTIC_CODE_INVALID_INJECT_PARAM = "RemoveInjectOrConflictedAnnotations";
