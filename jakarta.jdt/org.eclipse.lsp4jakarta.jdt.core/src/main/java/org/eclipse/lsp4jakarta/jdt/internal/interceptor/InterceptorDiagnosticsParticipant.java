@@ -47,6 +47,7 @@ import org.eclipse.lsp4jakarta.jdt.internal.DiagnosticUtils;
 import org.eclipse.lsp4jakarta.jdt.internal.Messages;
 import org.eclipse.lsp4jakarta.jdt.internal.core.ls.JDTUtilsLSImpl;
 import org.eclipse.lsp4jakarta.jdt.core.java.diagnostics.helpers.ConstructorInfoDiagnosticHelper;
+import org.eclipse.lsp4jakarta.jdt.internal.core.java.ManagedBean;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import java.util.logging.Level;
@@ -74,6 +75,8 @@ public class InterceptorDiagnosticsParticipant implements IJavaDiagnosticsPartic
         IType[] types = unit.getAllTypes();
         for (IType type : types) {
             int typeFlag = type.getFlags();
+            // Component class with class-level interceptor binding constraints
+            checkInterceptorBindingConstraints(type, typeFlag, unit, uri, diagnostics, context);
             boolean isInterceptorType = InterModuleCommonUtils.isInterceptorReferencedType(type, unit);
             if (isInterceptorType) {
                 Range range = PositionUtils.toNameRange(type, context.getUtils());
@@ -96,6 +99,10 @@ public class InterceptorDiagnosticsParticipant implements IJavaDiagnosticsPartic
                     }
                     // Check for negative priority value
                     checkNegativePriority(type, unit, uri, diagnostics, context);
+                    // Check for missing interceptor binding (only for classes with @Interceptor annotation)
+                    if (InterModuleCommonUtils.isInterceptorType(type, unit)) {
+                        checkInterceptorBinding(type, unit, uri, diagnostics, context);
+                    }
                 }
                 // Map to track methods by their interceptor annotation type for duplicate detection
                 Map<String, List<IMethod>> methodsByAnnotation = new HashMap<>();
@@ -197,7 +204,7 @@ public class InterceptorDiagnosticsParticipant implements IJavaDiagnosticsPartic
         }
 
         int methodFlag = method.getFlags();
-        String annotationNames = getSimpleAnnotationNames(interceptorAnnotations);
+        String annotationNames = DiagnosticUtils.getSimpleAnnotationNames(interceptorAnnotations, "");
         JsonArray annotationData = (JsonArray) new Gson().toJsonTree(interceptorAnnotations);
         // Check for final modifier
         if (Flags.isFinal(methodFlag)) {
@@ -330,17 +337,6 @@ public class InterceptorDiagnosticsParticipant implements IJavaDiagnosticsPartic
     }
 
     /**
-     * Converts a list of fully qualified annotation names to simple names.
-     *
-     * @param annotations the list of FQ annotation names
-     * @return comma-separated string of simple annotation names
-     * @throws JavaModelException if there's an error accessing the Java model
-     */
-    private String getSimpleAnnotationNames(List<String> annotations) throws JavaModelException {
-        return annotations.stream().map(DiagnosticUtils::getSimpleName).distinct().collect(Collectors.joining(", "));
-    }
-
-    /**
      * Checks if an interceptor class has a @Priority annotation with a negative value.
      * According to Jakarta Interceptors 2.0 specification, negative priority values are
      * reserved for future use and should not be used.
@@ -378,5 +374,109 @@ public class InterceptorDiagnosticsParticipant implements IJavaDiagnosticsPartic
                 LOGGER.log(Level.WARNING, "Unable to parse the priority value", e);
             }
         }
+    }
+
+    /**
+     * Checks if an interceptor class has at least one interceptor binding annotation.
+     * According to Jakarta Interceptors 2.0 specification, an interceptor declared using
+     * interceptor annotation must specify at least one interceptor binding annotation to
+     * enable the container to match it with target components.
+     *
+     * @param type the type to check
+     * @param unit the compilation unit
+     * @param uri the URI of the file
+     * @param diagnostics the list to add diagnostics to
+     * @param context the diagnostics context
+     * @throws JavaModelException if there's an error accessing the Java model
+     */
+    private void checkInterceptorBinding(IType type, ICompilationUnit unit, String uri,
+                                         List<Diagnostic> diagnostics, JavaDiagnosticsContext context) throws JavaModelException {
+        boolean hasInterceptorBinding = false;
+        // Get all annotations on the interceptor class
+        IAnnotation[] annotations = type.getAnnotations();
+        for (IAnnotation annotation : annotations) {
+            // Check if this annotation is an interceptor binding
+            if (ManagedBean.hasMetaAnnotation(annotation, type, unit, Constants.INTERCEPTOR_BINDING_FQ_NAME)) {
+                hasInterceptorBinding = true;
+                break;
+            }
+        }
+        // If no interceptor binding found, create diagnostic
+        if (!hasInterceptorBinding) {
+            Range range = PositionUtils.toNameRange(type, context.getUtils());
+            diagnostics.add(context.createDiagnostic(uri,
+                                                     Messages.getMessage("InvalidInterceptorMissingInterceptorBinding"),
+                                                     range,
+                                                     Constants.DIAGNOSTIC_SOURCE,
+                                                     ErrorCode.InvalidInterceptorMissingInterceptorBinding,
+                                                     DiagnosticSeverity.Warning));
+        }
+    }
+
+    /**
+     * Checks constraints imposed by the Jakarta Interceptors 2.0 specification on a component
+     * class that declares or inherits a class-level interceptor binding:
+     * <ul>
+     * <li>The class must not be declared {@code final}.</li>
+     * <li>No non-static, non-private method may be declared {@code final}.</li>
+     * </ul>
+     * Does nothing if the class has no class-level interceptor binding.
+     *
+     * @param type the type to check
+     * @param typeFlag the type's modifier flags
+     * @param unit the compilation unit
+     * @param uri the URI of the file
+     * @param diagnostics the list to add diagnostics to
+     * @param context the diagnostics context
+     * @throws JavaModelException if there's an error accessing the Java model
+     */
+    private void checkInterceptorBindingConstraints(IType type, int typeFlag, ICompilationUnit unit,
+                                                    String uri, List<Diagnostic> diagnostics,
+                                                    JavaDiagnosticsContext context) throws JavaModelException {
+        if (!hasClassLevelInterceptorBinding(type, unit)) {
+            return;
+        }
+        if (Flags.isFinal(typeFlag)) {
+            Range range = PositionUtils.toNameRange(type, context.getUtils());
+            diagnostics.add(context.createDiagnostic(uri,
+                                                     Messages.getMessage("InvalidFinalInterceptorBindingClass"),
+                                                     range, Constants.DIAGNOSTIC_SOURCE,
+                                                     ErrorCode.InvalidFinalInterceptorBindingClass,
+                                                     DiagnosticSeverity.Error));
+        }
+        for (IMethod method : type.getMethods()) {
+            int methodFlag = method.getFlags();
+            if (Flags.isFinal(methodFlag) && !Flags.isStatic(methodFlag) && !Flags.isPrivate(methodFlag)) {
+                Range range = PositionUtils.toNameRange(method, context.getUtils());
+                diagnostics.add(context.createDiagnostic(uri,
+                                                         Messages.getMessage("InvalidMethodOnInterceptorBindingClass",
+                                                                             method.getElementName()),
+                                                         range, Constants.DIAGNOSTIC_SOURCE,
+                                                         ErrorCode.InvalidMethodOnInterceptorBindingClass,
+                                                         DiagnosticSeverity.Error));
+            }
+        }
+    }
+
+    /**
+     * Returns {@code true} if the given type has a class-level interceptor binding, meaning it
+     * carries {@code @Interceptors(...)} or a custom annotation meta-annotated with
+     * {@code @InterceptorBinding}.
+     *
+     * @param type the type to check
+     * @param unit the compilation unit
+     * @return {@code true} if a class-level interceptor binding is present
+     * @throws JavaModelException if there's an error accessing the Java model
+     */
+    private boolean hasClassLevelInterceptorBinding(IType type, ICompilationUnit unit) throws JavaModelException {
+        return Stream.of(type.getAnnotations()).anyMatch(annotation -> {
+            try {
+                return DiagnosticUtils.isMatchedAnnotation(unit, annotation, Constants.INTERCEPTORS_FQ_NAME)
+                       || ManagedBean.hasMetaAnnotation(annotation, type, unit, Constants.INTERCEPTOR_BINDING_FQ_NAME);
+            } catch (JavaModelException e) {
+                LOGGER.log(Level.WARNING, "Unable to check class-level interceptor binding annotation", e);
+                return false;
+            }
+        });
     }
 }
