@@ -15,6 +15,7 @@ package org.eclipse.lsp4jakarta.jdt.internal.persistence;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -36,7 +37,11 @@ import org.eclipse.lsp4jakarta.jdt.internal.search.JakartaSearchSettings;
 import org.eclipse.lsp4jakarta.jdt.internal.search.ProjectWideNameScanner;
 
 /**
- * Validates that {@code @NamedEntityGraph} names are unique within the persistence unit.
+ * Validates {@code @NamedEntityGraph} annotations according to Jakarta Persistence 3.0 specification.
+ * <ul>
+ * <li>Graph name uniqueness within the persistence unit (§3.7.4)</li>
+ * <li>Attribute existence in the target entity (§3.7.4, §10.3.3)</li>
+ * </ul>
  * Spec §3.7.4:
  * <a href="https://jakarta.ee/specifications/persistence/3.0/jakarta-persistence-spec-3.0.html#a13662">a13662</a>
  */
@@ -111,19 +116,34 @@ public class NamedEntityGraphDiagnosticsParticipant implements IJavaDiagnosticsP
     }
 
     // -------------------------------------------------------------------------
-    // Validation — flags duplicates in the current file
+    // Validation — flags duplicates and invalid attributes
     // -------------------------------------------------------------------------
 
     private void validateType(IType type, Map<String, Integer> counts,
                               List<Diagnostic> diagnostics, JavaDiagnosticsContext context) throws JavaModelException {
+        Set<String> entityAttributes = null;
         for (IAnnotation ann : type.getAnnotations()) {
             String elementName = ann.getElementName();
             if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPH)) {
-                checkForDuplicate(ann, counts, diagnostics, context);
+                if (entityAttributes == null) {
+                    entityAttributes = DiagnosticUtils.getPropertyNames(type);
+                }
+                validateEntityGraph(ann, type, entityAttributes, counts, diagnostics, context);
             } else if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPHS)) {
-                forEachNestedGraph(ann, nested -> checkForDuplicate(nested, counts, diagnostics, context));
+                if (entityAttributes == null) {
+                    entityAttributes = DiagnosticUtils.getPropertyNames(type);
+                }
+                Set<String> attrs = entityAttributes;
+                forEachNestedGraph(ann, nested -> validateEntityGraph(nested, type, attrs, counts, diagnostics, context));
             }
         }
+    }
+
+    private void validateEntityGraph(IAnnotation graphAnn, IType type, Set<String> entityAttributes,
+                                     Map<String, Integer> counts, List<Diagnostic> diagnostics,
+                                     JavaDiagnosticsContext context) throws JavaModelException {
+        checkForDuplicate(graphAnn, counts, diagnostics, context);
+        validateAttributeNodes(graphAnn, type, entityAttributes, diagnostics, context);
     }
 
     private void checkForDuplicate(IAnnotation ann, Map<String, Integer> counts,
@@ -135,6 +155,35 @@ public class NamedEntityGraphDiagnosticsParticipant implements IJavaDiagnosticsP
                                                      Messages.getMessage("DuplicateNamedEntityGraphName", graphName),
                                                      range, Constants.DIAGNOSTIC_SOURCE,
                                                      ErrorCode.DuplicateNamedEntityGraphName,
+                                                     DiagnosticSeverity.Error));
+        }
+    }
+
+    private void validateAttributeNodes(IAnnotation parentAnnotation, IType targetType, Set<String> entityAttributes,
+                                        List<Diagnostic> diagnostics,
+                                        JavaDiagnosticsContext context) throws JavaModelException {
+        Object val = DiagnosticUtils.getAnnotationMemberValue(parentAnnotation, "attributeNodes", Object.class);
+        if (val == null) {
+            return;
+        }
+        Object[] items = (val instanceof Object[]) ? (Object[]) val : new Object[] { val };
+        for (Object item : items) {
+            if (item instanceof IAnnotation) {
+                validateSingleAttributeNode((IAnnotation) item, targetType, entityAttributes, diagnostics, context);
+            }
+        }
+    }
+
+    private void validateSingleAttributeNode(IAnnotation nodeAnn, IType targetType, Set<String> entityAttributes,
+                                             List<Diagnostic> diagnostics,
+                                             JavaDiagnosticsContext context) throws JavaModelException {
+        String attrName = DiagnosticUtils.getAnnotationMemberValue(nodeAnn, "value", String.class);
+        if (attrName != null && !attrName.isEmpty() && !entityAttributes.contains(attrName)) {
+            Range range = PositionUtils.toNameRange(nodeAnn, context.getUtils());
+            diagnostics.add(context.createDiagnostic(context.getUri(),
+                                                     Messages.getMessage("NamedAttributeNodeAttributeNotFound", attrName, targetType.getElementName()),
+                                                     range, Constants.DIAGNOSTIC_SOURCE,
+                                                     ErrorCode.NamedAttributeNodeAttributeNotFound,
                                                      DiagnosticSeverity.Error));
         }
     }

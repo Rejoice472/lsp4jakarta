@@ -16,7 +16,9 @@ import java.beans.Introspector;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -33,8 +35,10 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeHierarchy;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
 import org.eclipse.lsp4jakarta.jdt.core.JakartaCorePlugin;
+import org.eclipse.lsp4jakarta.jdt.core.utils.TypeHierarchyUtils;
 
 /**
  *
@@ -534,5 +538,47 @@ public class DiagnosticUtils {
      */
     public static String getSimpleAnnotationNames(List<String> annotations, String prefix) {
         return annotations.stream().map(fq -> prefix + getSimpleName(fq)).distinct().collect(Collectors.joining(", "));
+    }
+
+    /**
+     * Extracts all property and field names from a type across its
+     * inheritance hierarchy.
+     *
+     * <p>Includes all fields and JavaBean getter/boolean is-getter property names.
+     *
+     * @param type the Java type to inspect
+     * @return a set of available property/field names
+     * @throws JavaModelException if an error occurs accessing the Java model
+     */
+    public static Set<String> getPropertyNames(IType type) throws JavaModelException {
+        Set<String> propertyNames = new HashSet<>();
+        if (type == null) {
+            return propertyNames;
+        }
+        Set<IType> hierarchy = new HashSet<>();
+        TypeHierarchyUtils.collectSuperTypes(type, hierarchy);
+
+        for (IType t : hierarchy) {
+            for (IField field : t.getFields()) {
+                propertyNames.add(field.getElementName());
+            }
+            for (IMethod method : t.getMethods()) {
+                if (method.getNumberOfParameters() != 0) {
+                    continue;
+                }
+                String returnType = method.getReturnType();
+                if (Signature.SIG_VOID.equals(returnType)) {
+                    continue;
+                }
+                String name = method.getElementName();
+                if (name.startsWith("get") && name.length() > 3 && Character.isUpperCase(name.charAt(3))) {
+                    propertyNames.add(Introspector.decapitalize(name.substring(3)));
+                } else if (name.startsWith("is") && name.length() > 2 && Character.isUpperCase(name.charAt(2))
+                           && (Signature.SIG_BOOLEAN.equals(returnType) || "QBoolean;".equals(returnType) || "java.lang.Boolean".equals(returnType))) {
+                    propertyNames.add(Introspector.decapitalize(name.substring(2)));
+                }
+            }
+        }
+        return propertyNames;
     }
 }
