@@ -55,7 +55,7 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
     public void duplicateNamedEntityGraphNameInDuplicate1() throws Exception {
         IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
         IFile javaFile = javaProject.getProject().getFile(
-                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/NamedEntityGraphDuplicate1.java"));
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphDuplicate1.java"));
         String uri = javaFile.getLocation().toFile().toURI().toString();
 
         JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
@@ -77,7 +77,7 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
     public void duplicateNamedEntityGraphNameInDuplicate2() throws Exception {
         IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
         IFile javaFile = javaProject.getProject().getFile(
-                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/NamedEntityGraphDuplicate2.java"));
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphDuplicate2.java"));
         String uri = javaFile.getLocation().toFile().toURI().toString();
 
         JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
@@ -102,7 +102,7 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
     public void uniqueNamedEntityGraphNameValid() throws Exception {
         IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
         IFile javaFile = javaProject.getProject().getFile(
-                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/NamedEntityGraphUnique.java"));
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphUnique.java"));
         String uri = javaFile.getLocation().toFile().toURI().toString();
 
         JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
@@ -172,7 +172,7 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
     public void namedEntityGraphsContainerWithDuplicateName() throws Exception {
         IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
         IFile javaFile = javaProject.getProject().getFile(
-                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/NamedEntityGraphsContainerDuplicate.java"));
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphsContainerDuplicate.java"));
         String uri = javaFile.getLocation().toFile().toURI().toString();
 
         JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
@@ -194,7 +194,7 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
     public void namedEntityGraphsContainerAllUnique() throws Exception {
         IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
         IFile javaFile = javaProject.getProject().getFile(
-                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/NamedEntityGraphsContainerUnique.java"));
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphsContainerUnique.java"));
         String uri = javaFile.getLocation().toFile().toURI().toString();
 
         JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
@@ -216,7 +216,7 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
     public void namedEntityGraphsSelfDuplicateBothFlagged() throws Exception {
         IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
         IFile javaFile = javaProject.getProject().getFile(
-                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/NamedEntityGraphsSelfDuplicate.java"));
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphsSelfDuplicate.java"));
         String uri = javaFile.getLocation().toFile().toURI().toString();
 
         JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
@@ -231,5 +231,48 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
                                                DiagnosticSeverity.Error, "jakarta-persistence", "DuplicateNamedEntityGraphName");
 
         assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, firstSelfDuplicateDiag, secondSelfDuplicateDiag);
+    }
+
+    // -------------------------------------------------------------------------
+    // Attribute existence
+    // -------------------------------------------------------------------------
+
+    /**
+     * Tests that referencing an attribute not present on the entity in attributeNodes
+     * produces a {@code NamedAttributeNodeAttributeNotFound} diagnostic.
+     */
+    @Test
+    public void namedAttributeNodeAttributeNotFound() throws Exception {
+        IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
+        IFile javaFile = javaProject.getProject().getFile(
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphInvalidAttribute.java"));
+        String uri = javaFile.getLocation().toFile().toURI().toString();
+
+        JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
+        diagnosticsParams.setUris(Arrays.asList(uri));
+
+        // @NamedAttributeNode("nonExistentField") is at 0-based line 25, cols 8-47.
+        Diagnostic invalidAttributeDiag = d(25, 8, 47,
+                                            "Attribute 'nonExistentField' does not exist on entity 'NamedEntityGraphInvalidAttribute'.",
+                                            DiagnosticSeverity.Error, "jakarta-persistence", "NamedAttributeNodeAttributeNotFound");
+
+        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, invalidAttributeDiag);
+    }
+
+    /**
+     * Tests that a valid @NamedEntityGraph containing attributeNodes referencing
+     * existing attributes produces no diagnostics.
+     */
+    @Test
+    public void validNamedEntityGraph() throws Exception {
+        IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
+        IFile javaFile = javaProject.getProject().getFile(
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphValid.java"));
+        String uri = javaFile.getLocation().toFile().toURI().toString();
+
+        JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
+        diagnosticsParams.setUris(Arrays.asList(uri));
+
+        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS);
     }
 }
