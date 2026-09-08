@@ -275,4 +275,47 @@ public class NamedEntityGraphDiagnosticsTest extends BaseJakartaTest {
 
         assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS);
     }
+
+    /**
+     * Tests that attributeNodes referencing fields/getters from a superclass as well as
+     * methods complying with JavaBean conventions on the entity produce no diagnostics.
+     */
+    @Test
+    public void validSuperclassAndMethodProperties() throws Exception {
+        IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
+        IFile javaFile = javaProject.getProject().getFile(
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphSubclassValid.java"));
+        String uri = javaFile.getLocation().toFile().toURI().toString();
+
+        JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
+        diagnosticsParams.setUris(Arrays.asList(uri));
+
+        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS);
+    }
+
+    /**
+     * Tests that referencing invalid attributes (non-existent superclass field or non-getter
+     * method) produces {@code NamedAttributeNodeAttributeNotFound} diagnostics.
+     */
+    @Test
+    public void invalidSuperclassAndMethodProperties() throws Exception {
+        IJavaProject javaProject = loadJavaProject("jakarta-sample", "");
+        IFile javaFile = javaProject.getProject().getFile(
+                                                          new Path("src/main/java/io/openliberty/sample/jakarta/persistence/entitygraph/NamedEntityGraphSubclassInvalid.java"));
+        String uri = javaFile.getLocation().toFile().toURI().toString();
+
+        JakartaJavaDiagnosticsParams diagnosticsParams = new JakartaJavaDiagnosticsParams();
+        diagnosticsParams.setUris(Arrays.asList(uri));
+
+        // @NamedAttributeNode("invalidSuperField") at line 11, cols 8-48
+        Diagnostic invalidSuperFieldDiag = d(11, 8, 48,
+                                             "Attribute 'invalidSuperField' does not exist on entity 'NamedEntityGraphSubclassInvalid'.",
+                                             DiagnosticSeverity.Error, "jakarta-persistence", "NamedAttributeNodeAttributeNotFound");
+        // @NamedAttributeNode("invalidMethodProperty") at line 12, cols 8-52
+        Diagnostic invalidMethodPropDiag = d(12, 8, 52,
+                                             "Attribute 'invalidMethodProperty' does not exist on entity 'NamedEntityGraphSubclassInvalid'.",
+                                             DiagnosticSeverity.Error, "jakarta-persistence", "NamedAttributeNodeAttributeNotFound");
+
+        assertJavaDiagnostics(diagnosticsParams, IJDT_UTILS, invalidSuperFieldDiag, invalidMethodPropDiag);
+    }
 }
