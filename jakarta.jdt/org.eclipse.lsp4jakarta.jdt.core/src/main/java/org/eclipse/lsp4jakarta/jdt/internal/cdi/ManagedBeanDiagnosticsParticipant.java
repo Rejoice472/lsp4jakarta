@@ -605,10 +605,10 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
     private void validateSessionBeanInheritedScope(JavaDiagnosticsContext context, String uri,
                                                    List<Diagnostic> diagnostics, IType type, Range range,
                                                    String[] validScopes, String messageKey, ErrorCode errorCode) throws JavaModelException {
-        // Compute the scopes that are invalid for this bean type, then check whether any
-        // ancestor in the superclass chain carries one of them.
+        // Start with all known scopes, then remove the valid ones supplied by the caller;
+        // the remaining set contains only the scopes that are invalid for this bean type.
         Set<String> invalidScopes = new HashSet<>(Constants.SCOPE_FQ_NAMES);
-        Arrays.stream(validScopes).forEach(invalidScopes::remove);
+        Arrays.stream(validScopes).forEach(invalidScopes::remove); // remove valid scopes
 
         String matchedScope = TypeHierarchyUtils.findSupertypeWithAnyAnnotation(type, invalidScopes);
         if (matchedScope != null) {
