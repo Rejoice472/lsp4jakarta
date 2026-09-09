@@ -398,7 +398,8 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                 // If it has multiple scopes, it's an error
                 if (isStateless && (!isDependent || hasMultipleScopes)) {
                     Range range = PositionUtils.toNameRange(type, context.getUtils());
-                    String invalidStatelessScopeNames = toSimpleScopeNames(managedBeanAnnotations);
+                    List<String> invalidStatelessScopes = managedBeanAnnotations.stream().filter(a -> !Constants.DEPENDENT_FQ_NAME.equals(a)).collect(Collectors.toList());
+                    String invalidStatelessScopeNames = toSimpleScopeNames(invalidStatelessScopes);
                     diagnostics.add(context.createDiagnostic(uri,
                                                              Messages.getMessage("StatelessSessionBeanInvalidScope",
                                                                                  invalidStatelessScopeNames,

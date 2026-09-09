@@ -107,7 +107,7 @@ public class StatelessSessionBeanTest extends BaseJakartaTest {
         String uri = getFileUri("StatelessWithMultipleScopes.java");
 
         Diagnostic invalidScope = d(10, 13, 40,
-                                    "Invalid scope @Dependent, @RequestScoped present in the class StatelessWithMultipleScopes. A stateless session bean belongs to the @Dependent scope. Any other scope is invalid.",
+                                    "Invalid scope @RequestScoped present in the class StatelessWithMultipleScopes. A stateless session bean belongs to the @Dependent scope. Any other scope is invalid.",
                                     DiagnosticSeverity.Error, "jakarta-cdi", "InvalidStatelessSessionBeanScope");
 
         assertJavaDiagnostics(createDiagnosticsParams(uri), IJDT_UTILS, invalidScope);
