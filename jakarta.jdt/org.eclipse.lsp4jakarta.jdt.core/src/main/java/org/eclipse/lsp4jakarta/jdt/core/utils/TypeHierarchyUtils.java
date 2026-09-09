@@ -225,8 +225,9 @@ public class TypeHierarchyUtils {
     }
 
     /**
-     * Walks the full superclass chain of {@code type} and returns the FQ name of the first
-     * matching annotation found in any ancestor, or {@code null} if none is found.
+     * Walks the full superclass chain of {@code type} and returns a two-element array
+     * {@code [annotationFQName, declaringClassName]} for the first ancestor that carries
+     * any of the given annotations, or {@code null} if none is found.
      *
      * <p>The type itself is skipped — only superclasses are examined. Every level of the
      * hierarchy is checked; the walk stops early when a match is found.</p>
@@ -234,12 +235,12 @@ public class TypeHierarchyUtils {
      * @param type the root type whose superclass chain is searched
      * @param annotationFQNames the fully-qualified names of the annotations to look for
      *            in the supertype chain
-     * @return the matched annotation FQ name if any ancestor carries one of the
-     *         annotations; {@code null} if no such ancestor exists
+     * @return {@code String[]{annotationFQName, simpleClassName}} of the first matching
+     *         ancestor, or {@code null} if no such ancestor exists
      * @throws JavaModelException if the type hierarchy cannot be resolved
      */
-    public static String findSupertypeWithAnyAnnotation(IType type,
-                                                        Collection<String> annotationFQNames) throws JavaModelException {
+    public static String[] findSupertypeWithAnyAnnotation(IType type,
+                                                          Collection<String> annotationFQNames) throws JavaModelException {
         ITypeHierarchy hierarchy = type.newSupertypeHierarchy(null);
         IType superclass = hierarchy.getSuperclass(type);
 
@@ -249,7 +250,7 @@ public class TypeHierarchyUtils {
                     if (DiagnosticUtils.isMatchedAnnotation(superclass.getCompilationUnit(),
                                                             superclass.getAnnotations(),
                                                             annotationFQName)) {
-                        return annotationFQName;
+                        return new String[] { annotationFQName, superclass.getElementName() };
                     }
                 }
             } catch (JavaModelException e) {

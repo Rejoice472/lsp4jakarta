@@ -15,6 +15,7 @@ package org.eclipse.lsp4jakarta.jdt.internal.cdi;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -379,12 +380,16 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
             if (isManagedBean) {
 
                 if (isSingleton) {
-                    boolean hasInvalidSingletonScope = managedBeanAnnotations.stream().anyMatch(annotation -> !Constants.APPLICATION_SCOPED_FQ_NAME.equals(annotation)
-                                                                                                              && !Constants.DEPENDENT_FQ_NAME.equals(annotation));
-                    if (hasInvalidSingletonScope) {
+                    List<String> invalidSingletonScopes = managedBeanAnnotations.stream().filter(annotation -> !Constants.APPLICATION_SCOPED_FQ_NAME.equals(annotation)
+                                                                                                               && !Constants.DEPENDENT_FQ_NAME.equals(annotation)).collect(Collectors.toList());
+                    if (!invalidSingletonScopes.isEmpty()) {
                         Range range = PositionUtils.toNameRange(type, context.getUtils());
+                        String invalidScopeNames = toSimpleScopeNames(invalidSingletonScopes);
                         diagnostics.add(context.createDiagnostic(uri,
-                                                                 Messages.getMessage("SingletonSessionBeanInvalidScope"), range,
+                                                                 Messages.getMessage("SingletonSessionBeanInvalidScope",
+                                                                                     invalidScopeNames,
+                                                                                     type.getElementName()),
+                                                                 range,
                                                                  Constants.DIAGNOSTIC_SOURCE, (new Gson().toJsonTree(managedBeanAnnotations)),
                                                                  ErrorCode.InvalidSingletonSessionBeanScope, DiagnosticSeverity.Error));
                     }
@@ -393,8 +398,12 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                 // If it has multiple scopes, it's an error
                 if (isStateless && (!isDependent || hasMultipleScopes)) {
                     Range range = PositionUtils.toNameRange(type, context.getUtils());
+                    String invalidStatelessScopeNames = toSimpleScopeNames(managedBeanAnnotations);
                     diagnostics.add(context.createDiagnostic(uri,
-                                                             Messages.getMessage("StatelessSessionBeanInvalidScope"), range,
+                                                             Messages.getMessage("StatelessSessionBeanInvalidScope",
+                                                                                 invalidStatelessScopeNames,
+                                                                                 type.getElementName()),
+                                                             range,
                                                              Constants.DIAGNOSTIC_SOURCE, null,
                                                              ErrorCode.InvalidStatelessSessionBeanScope, DiagnosticSeverity.Error));
 
@@ -610,12 +619,17 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
         Set<String> invalidScopes = new HashSet<>(Constants.SCOPE_FQ_NAMES);
         Arrays.stream(validScopes).forEach(invalidScopes::remove); // remove valid scopes
 
-        String matchedScope = TypeHierarchyUtils.findSupertypeWithAnyAnnotation(type, invalidScopes);
-        if (matchedScope != null) {
+        String[] match = TypeHierarchyUtils.findSupertypeWithAnyAnnotation(type, invalidScopes);
+        if (match != null) {
+            String annotationFQName = match[0];
+            String declaringClassName = match[1];
             diagnostics.add(context.createDiagnostic(uri,
-                                                     Messages.getMessage(messageKey), range,
+                                                     Messages.getMessage(messageKey,
+                                                                         "@" + DiagnosticUtils.getSimpleName(annotationFQName),
+                                                                         declaringClassName),
+                                                     range,
                                                      Constants.DIAGNOSTIC_SOURCE,
-                                                     (new Gson().toJsonTree(List.of(matchedScope))),
+                                                     (new Gson().toJsonTree(List.of(annotationFQName))),
                                                      errorCode, DiagnosticSeverity.Error));
         }
     }
@@ -687,6 +701,10 @@ public class ManagedBeanDiagnosticsParticipant implements IJavaDiagnosticsPartic
                 }
             }
         }
+    }
+
+    private static String toSimpleScopeNames(Collection<String> fqNames) {
+        return fqNames.stream().map(a -> "@" + DiagnosticUtils.getSimpleName(a)).collect(Collectors.joining(", "));
     }
 
     private String createInvalidInjectLabel(Set<String> invalidAnnotations) {
