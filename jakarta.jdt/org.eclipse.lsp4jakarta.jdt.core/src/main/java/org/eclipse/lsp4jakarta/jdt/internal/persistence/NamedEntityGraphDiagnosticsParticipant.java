@@ -61,11 +61,13 @@ public class NamedEntityGraphDiagnosticsParticipant implements IJavaDiagnosticsP
             return diagnostics;
         }
 
-        Map<String, Integer> counts = ProjectWideNameScanner.scan(
-                                                                  context.getJavaProject(), this::extractNamesFromType, monitor);
+        // Maps each @NamedEntityGraph name to the number of times it is declared
+        // across the entire project. Any name with a count > 1 is a duplicate.
+        Map<String, Integer> graphNameOccurrences = ProjectWideNameScanner.scan(
+                                                                                context.getJavaProject(), this::extractNamesFromType, monitor);
 
         for (IType type : unit.getAllTypes()) {
-            validateType(type, counts, diagnostics, context);
+            validateType(type, graphNameOccurrences, diagnostics, context);
         }
         return diagnostics;
     }
@@ -78,8 +80,8 @@ public class NamedEntityGraphDiagnosticsParticipant implements IJavaDiagnosticsP
         for (IType type : unit.getAllTypes()) {
             boolean hasEntity = false;
             boolean hasGraph = false;
-            for (IAnnotation ann : type.getAnnotations()) {
-                String name = ann.getElementName();
+            for (IAnnotation annotation : type.getAnnotations()) {
+                String name = annotation.getElementName();
                 if (DiagnosticUtils.isMatchedJavaElement(type, name, Constants.ENTITY)) {
                     hasEntity = true;
                 }
@@ -99,14 +101,9 @@ public class NamedEntityGraphDiagnosticsParticipant implements IJavaDiagnosticsP
     // Extraction — passed to ProjectWideNameScanner as a method reference
     // -------------------------------------------------------------------------
 
-    private void extractNamesFromType(IType type, Map<String, Integer> nameCount) throws JavaModelException {
-        for (IAnnotation ann : type.getAnnotations()) {
-            String elementName = ann.getElementName();
-            if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPH)) {
-                mergeGraphName(ann, nameCount);
-            } else if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPHS)) {
-                forEachNestedGraph(ann, nested -> mergeGraphName(nested, nameCount));
-            }
+    private void extractNamesFromType(IType type, Map<String, Integer> graphNameOccurrences) throws JavaModelException {
+        for (IAnnotation annotation : type.getAnnotations()) {
+            forEachGraph(type, annotation, nested -> mergeGraphName(nested, graphNameOccurrences));
         }
     }
 
@@ -114,23 +111,18 @@ public class NamedEntityGraphDiagnosticsParticipant implements IJavaDiagnosticsP
     // Validation — flags duplicates in the current file
     // -------------------------------------------------------------------------
 
-    private void validateType(IType type, Map<String, Integer> counts,
+    private void validateType(IType type, Map<String, Integer> graphNameOccurrences,
                               List<Diagnostic> diagnostics, JavaDiagnosticsContext context) throws JavaModelException {
-        for (IAnnotation ann : type.getAnnotations()) {
-            String elementName = ann.getElementName();
-            if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPH)) {
-                checkForDuplicate(ann, counts, diagnostics, context);
-            } else if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPHS)) {
-                forEachNestedGraph(ann, nested -> checkForDuplicate(nested, counts, diagnostics, context));
-            }
+        for (IAnnotation annotation : type.getAnnotations()) {
+            forEachGraph(type, annotation, nested -> checkForDuplicate(nested, graphNameOccurrences, diagnostics, context));
         }
     }
 
-    private void checkForDuplicate(IAnnotation ann, Map<String, Integer> counts,
+    private void checkForDuplicate(IAnnotation annotation, Map<String, Integer> graphNameOccurrences,
                                    List<Diagnostic> diagnostics, JavaDiagnosticsContext context) throws JavaModelException {
-        String graphName = DiagnosticUtils.getAnnotationMemberValue(ann, "name", String.class);
-        if (graphName != null && counts.getOrDefault(graphName, 0) > 1) {
-            Range range = PositionUtils.toNameRange(ann, context.getUtils());
+        String graphName = DiagnosticUtils.getAnnotationMemberValue(annotation, "name", String.class);
+        if (graphName != null && graphNameOccurrences.getOrDefault(graphName, 0) > 1) {
+            Range range = PositionUtils.toNameRange(annotation, context.getUtils());
             diagnostics.add(context.createDiagnostic(context.getUri(),
                                                      Messages.getMessage("DuplicateNamedEntityGraphName", graphName),
                                                      range, Constants.DIAGNOSTIC_SOURCE,
@@ -143,10 +135,25 @@ public class NamedEntityGraphDiagnosticsParticipant implements IJavaDiagnosticsP
     // Shared helpers
     // -------------------------------------------------------------------------
 
-    private void mergeGraphName(IAnnotation ann, Map<String, Integer> nameCount) throws JavaModelException {
-        String name = DiagnosticUtils.getAnnotationMemberValue(ann, "name", String.class);
+    /**
+     * Invokes {@code consumer} for every individual {@code @NamedEntityGraph}
+     * reachable from {@code annotation}: directly if it is a
+     * {@code @NamedEntityGraph}, or once per nested entry if it is a
+     * {@code @NamedEntityGraphs} container.
+     */
+    private void forEachGraph(IType type, IAnnotation annotation, AnnotationConsumer consumer) throws JavaModelException {
+        String elementName = annotation.getElementName();
+        if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPH)) {
+            consumer.accept(annotation);
+        } else if (DiagnosticUtils.isMatchedJavaElement(type, elementName, Constants.NAMED_ENTITY_GRAPHS)) {
+            forEachNestedGraph(annotation, consumer);
+        }
+    }
+
+    private void mergeGraphName(IAnnotation annotation, Map<String, Integer> graphNameOccurrences) throws JavaModelException {
+        String name = DiagnosticUtils.getAnnotationMemberValue(annotation, "name", String.class);
         if (name != null) {
-            nameCount.merge(name, 1, Integer::sum);
+            graphNameOccurrences.merge(name, 1, Integer::sum);
         }
     }
 
