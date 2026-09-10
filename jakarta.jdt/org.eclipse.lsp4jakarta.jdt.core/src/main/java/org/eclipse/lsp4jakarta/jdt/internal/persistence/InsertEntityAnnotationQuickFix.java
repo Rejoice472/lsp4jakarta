@@ -10,37 +10,29 @@
 * Contributors:
 *     IBM Corporation - initial implementation
 *******************************************************************************/
-package org.eclipse.lsp4jakarta.jdt.internal.cdi;
+package org.eclipse.lsp4jakarta.jdt.internal.persistence;
 
 import org.eclipse.lsp4jakarta.commons.codeaction.ICodeActionId;
 import org.eclipse.lsp4jakarta.commons.codeaction.JakartaCodeActionId;
-import org.eclipse.lsp4jakarta.jdt.core.java.codeaction.RemoveAnnotationConflictQuickFix;
+import org.eclipse.lsp4jakarta.jdt.core.java.codeaction.InsertAnnotationMissingQuickFix;
 
 /**
- * Removes the @Singleton annotation from a class.
+ * Inserts the @Entity annotation on a class that has @NamedEntityGraph but is
+ * missing the required @Entity annotation.
  */
-public class RemoveSingletonAnnotationQuickFix extends RemoveAnnotationConflictQuickFix {
+public class InsertEntityAnnotationQuickFix extends InsertAnnotationMissingQuickFix {
 
-    /**
-     * Constructor.
-     */
-    public RemoveSingletonAnnotationQuickFix() {
-        super(false, Constants.SINGLETON_FQ_NAME);
+    public InsertEntityAnnotationQuickFix() {
+        super(Constants.ENTITY);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getParticipantId() {
-        return RemoveSingletonAnnotationQuickFix.class.getName();
+        return InsertEntityAnnotationQuickFix.class.getName();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected JakartaCodeActionId getCodeActionId() {
-        return JakartaCodeActionId.CDIRemoveSingletonAnnotation;
+    protected ICodeActionId getCodeActionId() {
+        return JakartaCodeActionId.PersistenceInsertEntityAnnotation;
     }
 }

@@ -15,13 +15,17 @@ package org.eclipse.lsp4jakarta.jdt.internal.ejb;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.Flags;
+import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.Range;
@@ -33,6 +37,8 @@ import org.eclipse.lsp4jakarta.jdt.core.utils.PositionUtils;
 import org.eclipse.lsp4jakarta.jdt.internal.DiagnosticUtils;
 import org.eclipse.lsp4jakarta.jdt.internal.Messages;
 import org.eclipse.lsp4jakarta.jdt.internal.core.ls.JDTUtilsLSImpl;
+
+import com.google.gson.Gson;
 
 /**
  * EJB diagnostic participant that validates session beans.
@@ -67,12 +73,129 @@ public class EjbDiagnosticsParticipant implements IJavaDiagnosticsParticipant {
                                                                                              Constants.SESSION_BEAN_ANNOTATIONS);
 
             if (!sessionBeanAnnotations.isEmpty()) {
+                int typeFlags = type.getFlags();
+                Range range = PositionUtils.toNameRange(type, context.getUtils());
+
+                // Check: class must be public
+                if (!Flags.isPublic(typeFlags)) {
+                    diagnostics.add(context.createDiagnostic(uri,
+                                                             Messages.getMessage("SessionBeanMustBePublic"),
+                                                             range, Constants.DIAGNOSTIC_SOURCE,
+                                                             ErrorCode.InvalidModifierNotPublic,
+                                                             DiagnosticSeverity.Error));
+                }
+
+                // Check: class must not be final
+                if (Flags.isFinal(typeFlags)) {
+                    diagnostics.add(context.createDiagnostic(uri,
+                                                             Messages.getMessage("SessionBeanMustNotBeFinal"),
+                                                             range, Constants.DIAGNOSTIC_SOURCE,
+                                                             ErrorCode.InvalidModifierFinal,
+                                                             DiagnosticSeverity.Error));
+                }
+
+                // Check: class must not be abstract
+                if (Flags.isAbstract(typeFlags)) {
+                    diagnostics.add(context.createDiagnostic(uri,
+                                                             Messages.getMessage("SessionBeanMustNotBeAbstract"),
+                                                             range, Constants.DIAGNOSTIC_SOURCE,
+                                                             ErrorCode.InvalidModifierAbstract,
+                                                             DiagnosticSeverity.Error));
+                }
+
+                // Check: class must be a top-level class (not nested/inner/anonymous/local)
+                if (type.isMember() || type.isAnonymous() || type.isLocal()) {
+                    diagnostics.add(context.createDiagnostic(uri,
+                                                             Messages.getMessage("SessionBeanMustBeTopLevel"),
+                                                             range, Constants.DIAGNOSTIC_SOURCE,
+                                                             ErrorCode.InvalidNonTopLevelClass,
+                                                             DiagnosticSeverity.Error));
+                }
+                // Check for @Interceptor or @Decorator annotations
+                List<String> invalidAnnotations = DiagnosticUtils.getMatchedJavaElementNames(type,
+                                                                                             typeAnnotations,
+                                                                                             new String[] {
+                                                                                                            Constants.INTERCEPTOR_FQ_NAME,
+                                                                                                            Constants.DECORATOR_FQ_NAME
+                                                                                             });
+
+                if (!invalidAnnotations.isEmpty()) {
+                    String message = Messages.getMessage("InvalidSessionBeanWithInterceptorOrDecorator");
+                    diagnostics.add(context.createDiagnostic(uri, message, range,
+                                                             Constants.DIAGNOSTIC_SOURCE,
+                                                             ErrorCode.InvalidSessionBeanWithInterceptorOrDecorator,
+                                                             DiagnosticSeverity.Error));
+                }
+
+                if (sessionBeanAnnotations.size() > 1) {
+                    String annotationNames = sessionBeanAnnotations.stream().map(DiagnosticUtils::getSimpleName).map(name -> "@" + name).collect(Collectors.joining(", "));
+                    String message = Messages.getMessage("SessionBeanConflictingAnnotations", annotationNames);
+                    diagnostics.add(context.createDiagnostic(uri, message, range,
+                                                             Constants.DIAGNOSTIC_SOURCE,
+                                                             (new Gson().toJsonTree(sessionBeanAnnotations)),
+                                                             ErrorCode.ConflictingSessionBeanAnnotations,
+                                                             DiagnosticSeverity.Error));
+                }
                 validateSessionBeanConstructor(type, context, uri, diagnostics);
                 validateSessionBeanFinalizeMethod(type, context, uri, diagnostics);
+                // Validate session synchronization methods (@AfterBegin, @BeforeCompletion, @AfterCompletion)
+                validateSessionSyncMethods(context, uri, unit, type, diagnostics);
             }
         }
 
         return diagnostics;
+    }
+
+    /**
+     * Validates that session synchronization methods on a type comply with the EJB spec:
+     * must not be final, must not be static, and must be of type void.
+     *
+     * @param context the diagnostics context
+     * @param uri the file URI
+     * @param unit the compilation unit
+     * @param type the type to inspect
+     * @param diagnostics the list to add diagnostics to
+     * @throws JavaModelException if there is an error accessing the Java model
+     */
+    private void validateSessionSyncMethods(JavaDiagnosticsContext context, String uri,
+                                            ICompilationUnit unit, IType type,
+                                            List<Diagnostic> diagnostics) throws JavaModelException {
+        for (IMethod method : type.getMethods()) {
+            List<String> matchedAnnotations = getSessionSyncAnnotations(unit, type, method);
+            if (matchedAnnotations.isEmpty()) {
+                continue;
+            }
+
+            String annotationNames = DiagnosticUtils.getSimpleAnnotationNames(matchedAnnotations, "@");
+            int flags = method.getFlags();
+
+            if (Flags.isFinal(flags)) {
+                Range range = PositionUtils.toNameRange(method, context.getUtils());
+                diagnostics.add(context.createDiagnostic(uri,
+                                                         Messages.getMessage("InvalidSessionSyncMethodFinal", annotationNames),
+                                                         range, Constants.DIAGNOSTIC_SOURCE,
+                                                         ErrorCode.InvalidSessionSyncMethodFinal,
+                                                         DiagnosticSeverity.Error));
+            }
+
+            if (Flags.isStatic(flags)) {
+                Range range = PositionUtils.toNameRange(method, context.getUtils());
+                diagnostics.add(context.createDiagnostic(uri,
+                                                         Messages.getMessage("InvalidSessionSyncMethodStatic", annotationNames),
+                                                         range, Constants.DIAGNOSTIC_SOURCE,
+                                                         ErrorCode.InvalidSessionSyncMethodStatic,
+                                                         DiagnosticSeverity.Error));
+            }
+
+            if (!Constants.VOID_RETURN_TYPE.equals(method.getReturnType())) {
+                Range range = PositionUtils.toNameRange(method, context.getUtils());
+                diagnostics.add(context.createDiagnostic(uri,
+                                                         Messages.getMessage("InvalidSessionSyncMethodNonVoid", annotationNames),
+                                                         range, Constants.DIAGNOSTIC_SOURCE,
+                                                         ErrorCode.InvalidSessionSyncMethodNonVoid,
+                                                         DiagnosticSeverity.Error));
+            }
+        }
     }
 
     /**
@@ -96,6 +219,23 @@ public class EjbDiagnosticsParticipant implements IJavaDiagnosticsParticipant {
                                                      ErrorCode.MissingPublicNoArgConstructor,
                                                      DiagnosticSeverity.Error));
         }
+    }
+
+    /**
+     * Returns the list of session synchronization annotation FQ names present on
+     * the given method.
+     *
+     * @param unit the compilation unit
+     * @param type the declaring type
+     * @param method the method to check
+     * @return matched session sync annotation FQ names, never null
+     * @throws JavaModelException if there is an error accessing the Java model
+     */
+    private List<String> getSessionSyncAnnotations(ICompilationUnit unit, IType type,
+                                                   IMethod method) throws JavaModelException {
+        String[] methodAnnotationNames = Stream.of(method.getAnnotations()).map(IAnnotation::getElementName).toArray(String[]::new);
+        return DiagnosticUtils.getMatchedJavaElementNames(type, methodAnnotationNames,
+                                                          Constants.SESSION_SYNC_ANNOTATIONS);
     }
 
     /**
