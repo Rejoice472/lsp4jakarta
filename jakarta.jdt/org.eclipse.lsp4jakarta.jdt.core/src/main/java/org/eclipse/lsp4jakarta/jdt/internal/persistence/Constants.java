@@ -13,6 +13,7 @@
 
 package org.eclipse.lsp4jakarta.jdt.internal.persistence;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -25,10 +26,10 @@ public class Constants {
     public static final String ENTITY = "jakarta.persistence.Entity";
     public static final String ENTITY_LISTENERS = "jakarta.persistence.EntityListeners";
     public static final String ID = "jakarta.persistence.Id";
+    public static final String IDCLASS = "jakarta.persistence.IdClass";
     public static final String EMBEDDEDID = "jakarta.persistence.EmbeddedId";
     public static final String EMBEDDED = "jakarta.persistence.Embedded";
     public static final String EMBEDDABLE = "jakarta.persistence.Embeddable";
-    public static final String IDCLASS = "jakarta.persistence.IdClass";
     public static final String MAPPEDSUPERCLASS = "jakarta.persistence.MappedSuperclass";
     public static final String ELEMENT_COLLECTION = "jakarta.persistence.ElementCollection";
     public static final String ATTRIBUTE_OVERRIDE = "jakarta.persistence.AttributeOverride";
@@ -41,6 +42,9 @@ public class Constants {
     public static final String ATTRIBUTE_OVERRIDE_KEY_PREFIX = "key.";
 
     public static final String INHERITANCE = "jakarta.persistence.Inheritance";
+    public static final String NAMEDENTITYGRAPH = "jakarta.persistence.NamedEntityGraph";
+    public static final String NAMEDENTITYGRAPHS = "jakarta.persistence.NamedEntityGraphs";
+    public static final String NAMED_SUBGRAPH = "jakarta.persistence.NamedSubgraph";
     public static final String MAPKEY = "jakarta.persistence.MapKey";
     public static final String MAPKEYCLASS = "jakarta.persistence.MapKeyClass";
     public static final String MAPKEYJOINCOLUMN = "jakarta.persistence.MapKeyJoinColumn";
@@ -48,8 +52,6 @@ public class Constants {
     public static final String MAPKEYTEMPORAL = "jakarta.persistence.MapKeyTemporal";
     public static final String CONVERTER = "jakarta.persistence.Converter";
     public static final String ATTRIBUTE_CONVERTER = "jakarta.persistence.AttributeConverter";
-    public static final String NAMEDENTITYGRAPH = "jakarta.persistence.NamedEntityGraph";
-    public static final String NAMEDENTITYGRAPHS = "jakarta.persistence.NamedEntityGraphs";
     public static final String NAMEDQUERY = "jakarta.persistence.NamedQuery";
     public static final String NAMEDQUERIES = "jakarta.persistence.NamedQueries";
     public static final String NAMEDNATIVEQUERY = "jakarta.persistence.NamedNativeQuery";
@@ -61,6 +63,8 @@ public class Constants {
     public static final String SEQUENCE_GENERATORS = "jakarta.persistence.SequenceGenerators";
     public static final String SECONDARY_TABLE = "jakarta.persistence.SecondaryTable";
     public static final String SECONDARY_TABLES = "jakarta.persistence.SecondaryTables";
+
+    public static final String MAPSID = "jakarta.persistence.MapsId";
 
     public static final String[] GENERATOR_AND_TABLE_ANNOTATIONS = {
                                                                      TABLE_GENERATOR, TABLE_GENERATORS, SEQUENCE_GENERATOR, SEQUENCE_GENERATORS, SECONDARY_TABLE, SECONDARY_TABLES
@@ -100,6 +104,7 @@ public class Constants {
     public static final String TEMPORAL = "jakarta.persistence.Temporal";
     public static final String VERSION = "jakarta.persistence.Version";
     public static final String OBJECT = "java.lang.Object";
+    public static final String SERIALIZABLE = "java.io.Serializable";
     public static final String SQL_TIMESTAMP = "java.sql.Timestamp";
 
     /* Valid @Version field types */
@@ -121,6 +126,20 @@ public class Constants {
 
     public static final String STRING_TYPE = "java.lang.String";
 
+    /**
+     * Maps each primitive type name to its fully-qualified wrapper type name.
+     * Used for primitive ↔ wrapper compatibility checks (spec §2.4).
+     */
+    public static final Map<String, String> PRIMITIVE_TO_WRAPPER = Map.of(
+                                                                          "int", "java.lang.Integer",
+                                                                          "long", "java.lang.Long",
+                                                                          "short", "java.lang.Short",
+                                                                          "byte", "java.lang.Byte",
+                                                                          "char", "java.lang.Character",
+                                                                          "boolean", "java.lang.Boolean",
+                                                                          "float", "java.lang.Float",
+                                                                          "double", "java.lang.Double");
+
     /* Combined set of all valid @Id types */
     public static final Set<String> VALID_ID_TYPES = Stream.of(PRIMITIVES, WRAPPER_TYPES, DATE_TYPES, BIG_NUMBER_TYPES,
                                                                Set.of(STRING_TYPE)).flatMap(Set::stream).collect(Collectors.toUnmodifiableSet());
@@ -128,6 +147,8 @@ public class Constants {
     /* Annotation Fields */
     public static final String NAME = "name";
     public static final String REFERENCEDCOLUMNNAME = "referencedColumnName";
+    public static final String JOIN_COLUMNS_ATTRIBUTE = "joinColumns";
+    public static final String JOIN_TABLE_ATTRIBUTE = "joinTable";
     public static final String CONVERTER_ATTRIBUTE = "converter";
     public static final String DISABLE_CONVERSION = "disableConversion";
     public static final String ATTRIBUTE_NAME = "attributeName";
