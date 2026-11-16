@@ -192,13 +192,6 @@ public class JakartaProjectVersionManager {
     }
 
     /**
-     * Clears the in-memory version cache of all projects. Version files on disk are kept.
-     */
-    public void clearCache() {
-        projectVersions.clear();
-    }
-
-    /**
      * Releases all resources: cancels pending selection requests, clears the
      * caches and shuts down the executor, waiting up to 5 seconds for running tasks.
      * Version files on disk are kept so versions survive server restarts.

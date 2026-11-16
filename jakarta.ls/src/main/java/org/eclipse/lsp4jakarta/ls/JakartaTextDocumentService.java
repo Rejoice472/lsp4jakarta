@@ -353,14 +353,6 @@ public class JakartaTextDocumentService implements TextDocumentService {
     }
 
     /**
-     * Clears the in-memory version cache for all projects.
-     * Called during server shutdown before full cleanup.
-     */
-    public void clearVersionCache() {
-        versionManager.clearCache();
-    }
-
-    /**
      * Shutdown the text document service and clean up resources.
      * Note: Version files on disk are preserved for persistence across server restarts.
      */
