@@ -136,14 +136,8 @@ public class JakartaProjectVersionManager {
                 return true;
             }
 
-            CompletableFuture<String> existingRequest = versionRequestsInFlight.get(projectUri);
-            if (existingRequest != null) {
-                existingRequest.thenAcceptAsync(version -> {
-                    if (version != null) {
-                        onVersionResolved.accept(projectUri);
-                    }
-                    // If null (cancelled), the request that sent the prompt applies the default and revalidates
-                }, executor);
+            // A selection request is already pending; its answer revalidates the project
+            if (versionRequestsInFlight.containsKey(projectUri)) {
                 return false;
             }
 
@@ -275,7 +269,7 @@ public class JakartaProjectVersionManager {
 
         versionRequest.thenAcceptAsync(selectedVersion -> {
             synchronized (projectLock) {
-                versionRequestsInFlight.remove(projectUri);
+                versionRequestsInFlight.remove(projectUri, versionRequest);
 
                 if (selectedVersion != null) {
                     store(projectUri, new VersionData(selectedVersion, SelectionMode.USER_SELECTED, versions));
@@ -289,7 +283,7 @@ public class JakartaProjectVersionManager {
             }
         }, executor).exceptionally(ex -> {
             synchronized (projectLock) {
-                versionRequestsInFlight.remove(projectUri);
+                versionRequestsInFlight.remove(projectUri, versionRequest);
                 LOGGER.severe("Error during version selection (" + context + ") for project " + projectUri + ": " + ex.getMessage());
             }
             return null;
