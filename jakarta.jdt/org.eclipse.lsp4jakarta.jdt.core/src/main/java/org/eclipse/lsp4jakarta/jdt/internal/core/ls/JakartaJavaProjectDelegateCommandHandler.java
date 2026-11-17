@@ -61,6 +61,8 @@ public class JakartaJavaProjectDelegateCommandHandler extends AbstractJakartaDel
         JakartaJavaProjectLabelsParams params = new JakartaJavaProjectLabelsParams();
         params.setUri(javaFileUri);
         params.setTypes(types);
+        // Include the Jakarta EE versions unless the caller says the version is already known
+        params.setIncludeJakartaVersions(!Boolean.FALSE.equals(obj.get("includeJakartaVersions")));
         return ProjectLabelManager.getInstance().getProjectLabelInfo(params, JDTUtilsLSImpl.getInstance(), monitor);
     }
 }
