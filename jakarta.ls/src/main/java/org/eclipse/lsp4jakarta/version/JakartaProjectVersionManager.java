@@ -42,9 +42,8 @@ import java.util.stream.Collectors;
  * <p>
  * A project's version is resolved in this order: memory cache, version file,
  * single detected version, default version (when the client cannot select a
- * version), user selection. If the user cancels the first selection of a
- * project, the default version is applied; if the project had a version before
- * (selection after a reset), that version is kept.
+ * version), user selection. If the user cancels the selection, the default
+ * version is applied.
  * </p>
  */
 public class JakartaProjectVersionManager {
@@ -100,6 +99,43 @@ public class JakartaProjectVersionManager {
     }
 
     /**
+     * Tells whether the version of a project is already known, in the memory
+     * cache or in the project's version file (which is then loaded into the cache).
+     * When it is, the versions on the project's classpath do not need to be detected.
+     *
+     * @param projectUri the project URI, may be null
+     * @return true if the project has a version, false otherwise or if the URI is null
+     */
+    public boolean isVersionKnown(String projectUri) {
+        if (projectUri == null) {
+            return false;
+        }
+        synchronized (lockFor(projectUri)) {
+            return loadKnownVersion(projectUri);
+        }
+    }
+
+    /**
+     * Checks the memory cache and then the version file, loading the file's
+     * version into the cache. Must be called while holding the project lock.
+     *
+     * @param projectUri the project URI
+     * @return true if the project has a version, false otherwise
+     */
+    private boolean loadKnownVersion(String projectUri) {
+        if (projectVersions.containsKey(projectUri)) {
+            return true;
+        }
+        VersionData versionData = JakartaVersionFileStore.readVersionData(projectUri);
+        if (versionData == null) {
+            return false;
+        }
+        projectVersions.put(projectUri, versionData);
+        LOGGER.info("Loaded Jakarta EE version " + versionData.getVersion() + " from file for project: " + projectUri);
+        return true;
+    }
+
+    /**
      * Returns the numeric level of a project's selected version, as used for snippet filtering.
      *
      * @param projectUri the project URI, may be null
@@ -125,14 +161,7 @@ public class JakartaProjectVersionManager {
      */
     public boolean resolve(String projectUri, List<JakartaVersion> detectedVersions) {
         synchronized (lockFor(projectUri)) {
-            if (projectVersions.containsKey(projectUri)) {
-                return true;
-            }
-
-            VersionData versionData = JakartaVersionFileStore.readVersionData(projectUri);
-            if (versionData != null) {
-                projectVersions.put(projectUri, versionData);
-                LOGGER.info("Loaded Jakarta EE version " + versionData.getVersion() + " from file for project: " + projectUri);
+            if (loadKnownVersion(projectUri)) {
                 return true;
             }
 
