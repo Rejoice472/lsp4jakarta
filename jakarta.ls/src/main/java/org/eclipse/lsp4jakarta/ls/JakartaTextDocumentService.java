@@ -87,7 +87,6 @@ public class JakartaTextDocumentService implements TextDocumentService {
         this.sharedSettings = sharedSettings;
         this.documents = jakartaTextDocuments;
         this.versionManager = new JakartaProjectVersionManager(this::requestVersionSelection, this::isVersionSelectorSupported, this::revalidateProject);
-        this.documents.setVersionKnown(versionManager::isVersionKnown);
         this.validatorDelayer = new ValidatorDelayer<>((javaTextDocument) -> {
             triggerValidationFor(javaTextDocument);
         });

@@ -142,16 +142,9 @@ public class JakartaVersionFinder {
      * The result is also recorded in {@link JakartaVersionManager}.
      *
      * @param project the Eclipse project
-     * @param includeJakartaVersions false if the caller already knows the version, in which case the
-     *            classpath is not analyzed
-     * @return the detected Jakarta EE versions, or an empty list if {@code includeJakartaVersions} is
-     *         false or the project is not a Java project
+     * @return the detected Jakarta EE versions, or an empty list if the project is not a Java project
      */
-    public static List<JakartaVersion> getJakartaVersions(IProject project, boolean includeJakartaVersions) {
-        if (!includeJakartaVersions) {
-            return Collections.emptyList();
-        }
-
+    public static List<JakartaVersion> getJakartaVersions(IProject project) {
         IJavaProject javaProject = JavaCore.create(project);
 
         if (javaProject == null) {

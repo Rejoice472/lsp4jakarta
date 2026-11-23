@@ -99,23 +99,6 @@ public class JakartaProjectVersionManager {
     }
 
     /**
-     * Tells whether the version of a project is already known, in the memory
-     * cache or in the project's version file (which is then loaded into the cache).
-     * When it is, the versions on the project's classpath do not need to be detected.
-     *
-     * @param projectUri the project URI, may be null
-     * @return true if the project has a version, false otherwise or if the URI is null
-     */
-    public boolean isVersionKnown(String projectUri) {
-        if (projectUri == null) {
-            return false;
-        }
-        synchronized (lockFor(projectUri)) {
-            return loadKnownVersion(projectUri);
-        }
-    }
-
-    /**
      * Checks the memory cache and then the version file, loading the file's
      * version into the cache. Must be called while holding the project lock.
      *

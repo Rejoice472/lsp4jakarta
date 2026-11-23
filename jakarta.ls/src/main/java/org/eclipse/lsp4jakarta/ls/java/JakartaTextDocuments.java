@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -69,9 +68,6 @@ public class JakartaTextDocuments extends TextDocuments<JakartaTextDocument> {
     private JavaTextDocumentSnippetRegistry snippetRegistry;
 
     private boolean hasLoadedAllProjects = false;
-
-    // Tells whether the Jakarta EE version of a project (by project URI) is already known
-    private Predicate<String> versionKnown = projectUri -> false;
 
     /**
      * Opened Java file.
@@ -210,16 +206,6 @@ public class JakartaTextDocuments extends TextDocuments<JakartaTextDocument> {
         this.projectCache = new ConcurrentHashMap<>();
     }
 
-    /**
-     * Sets the check used to skip the detection of the Jakarta EE versions of a
-     * project whose version is already known.
-     *
-     * @param versionKnown returns true if the version of the given project URI is known
-     */
-    public void setVersionKnown(Predicate<String> versionKnown) {
-        this.versionKnown = versionKnown;
-    }
-
     @Override
     public JakartaTextDocument createDocument(TextDocumentItem document) {
         JakartaTextDocument doc = new JakartaTextDocument(document);
@@ -262,9 +248,6 @@ public class JakartaTextDocuments extends TextDocuments<JakartaTextDocument> {
         JakartaJavaProjectLabelsParams params = new JakartaJavaProjectLabelsParams();
         params.setUri(documentURI);
         params.setTypes(getSnippetRegistry().getTypes());
-        // Skip the Jakarta EE versions (classpath analysis on the client) only if the project version
-        // is already known (project URI is only known once a previous response has been received).
-        params.setIncludeJakartaVersions(!versionKnown.test(document.getProjectURI()));
         final CompletableFuture<ProjectLabelInfoEntry> future = projectInfoProvider.getJavaProjectLabels(params);
         ProjectLabelInfoEntry entry = null;
         try {
@@ -274,6 +257,9 @@ public class JakartaTextDocuments extends TextDocuments<JakartaTextDocument> {
             LOGGER.log(Level.WARNING, String.format(
                                                     "Error while getting the CompletableFuture ProjectLabelInfoEntry object from client for '%s'", document.getUri()),
                        e);
+        }
+        if (entry != null && entry.getUri() != null && !entry.getUri().isEmpty()) {
+            document.setProjectURI(entry.getUri());
         }
 
         // TODO: re-enable caching of the ProjectLabelInfoEntry objects?

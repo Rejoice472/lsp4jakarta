@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
@@ -12,11 +13,11 @@ public class JakartaVersionManager {
 
     private static volatile JakartaVersionManager instance;
 
-    // HashMap to store project versions (key: project name, value: list of Jakarta versions)
-    private Map<String, List<JakartaVersion>> projectVersionMap;
+    // Map to store project versions (key: project name, value: list of Jakarta versions)
+    private final Map<String, List<JakartaVersion>> projectVersionMap;
 
     private JakartaVersionManager() {
-        projectVersionMap = new HashMap<>();
+        projectVersionMap = new ConcurrentHashMap<>();
     }
 
     // Public method to get the singleton instance (thread-safe)
@@ -36,8 +37,13 @@ public class JakartaVersionManager {
     }
 
     public List<JakartaVersion> getVersion(String projectName, IJavaProject javaProject, IClasspathEntry[] entries) {
+        if (projectName != null && projectVersionMap.containsKey(projectName)) {
+            return projectVersionMap.get(projectName);
+        }
         List<JakartaVersion> detectedVersions = JakartaVersionFinder.analyzeClasspath(entries, javaProject);
-        this.setVersions(projectName, detectedVersions);
+        if (projectName != null) {
+            this.setVersions(projectName, detectedVersions);
+        }
         return detectedVersions;
     }
 

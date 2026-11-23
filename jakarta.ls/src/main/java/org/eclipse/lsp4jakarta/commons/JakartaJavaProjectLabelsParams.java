@@ -30,8 +30,6 @@ public class JakartaJavaProjectLabelsParams {
 
     private List<String> types;
 
-    private boolean includeJakartaVersions = true;
-
     /**
      * Returns the Java file uri.
      *
@@ -72,27 +70,5 @@ public class JakartaJavaProjectLabelsParams {
      */
     public void setTypes(List<String> types) {
         this.types = types;
-    }
-
-    /**
-     * Returns true if the Jakarta EE versions of the project must be included in
-     * the project information (this analyzes the project classpath), false if the
-     * caller already knows the version (from its cache or version file) and does
-     * not need them. Defaults to true.
-     *
-     * @return true if the Jakarta EE versions must be included
-     */
-    public boolean isIncludeJakartaVersions() {
-        return includeJakartaVersions;
-    }
-
-    /**
-     * Set whether the Jakarta EE versions of the project must be included in the
-     * project information.
-     *
-     * @param includeJakartaVersions false if the caller already knows the version
-     */
-    public void setIncludeJakartaVersions(boolean includeJakartaVersions) {
-        this.includeJakartaVersions = includeJakartaVersions;
     }
 }

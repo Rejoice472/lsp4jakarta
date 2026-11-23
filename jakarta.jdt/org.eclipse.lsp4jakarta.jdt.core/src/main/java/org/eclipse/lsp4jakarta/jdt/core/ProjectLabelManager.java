@@ -59,7 +59,7 @@ public class ProjectLabelManager {
         IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
 
         for (IProject project : projects) {
-            ProjectLabelInfoEntry info = getProjectLabelInfo(project, null, true);
+            ProjectLabelInfoEntry info = getProjectLabelInfo(project, null);
             if (info != null) {
                 results.add(info);
             }
@@ -72,13 +72,12 @@ public class ProjectLabelManager {
      *
      * @param project Eclipse project.
      * @param types the Java type list to check.
-     * @param includeJakartaVersions false to skip the Jakarta EE versions because the caller already knows them.
      * @return project label results for the given Eclipse project.
      */
-    private ProjectLabelInfoEntry getProjectLabelInfo(IProject project, List<String> types, boolean includeJakartaVersions) {
+    private ProjectLabelInfoEntry getProjectLabelInfo(IProject project, List<String> types) {
         String uri = JDTJakartaUtils.getProjectURI(project);
         if (uri != null) {
-            return new ProjectLabelInfoEntry(uri, project.getName(), getProjectLabels(project, types), JakartaVersionFinder.getJakartaVersions(project, includeJakartaVersions));
+            return new ProjectLabelInfoEntry(uri, project.getName(), getProjectLabels(project, types), JakartaVersionFinder.getJakartaVersions(project));
         }
         return null;
     }
@@ -98,7 +97,7 @@ public class ProjectLabelManager {
             // The uri doesn't belong to an Eclipse project
             return ProjectLabelInfoEntry.EMPTY_PROJECT_INFO;
         }
-        return getProjectLabelInfo(project, params.getTypes(), params.isIncludeJakartaVersions());
+        return getProjectLabelInfo(project, params.getTypes());
     }
 
     private static IProject findProject(String uri, IJDTUtils utils) {
