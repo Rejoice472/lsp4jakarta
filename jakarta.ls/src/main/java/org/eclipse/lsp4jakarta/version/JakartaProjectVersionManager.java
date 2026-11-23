@@ -42,9 +42,8 @@ import java.util.stream.Collectors;
  * <p>
  * A project's version is resolved in this order: memory cache, version file,
  * single detected version, default version (when the client cannot select a
- * version), user selection. If the user cancels the first selection of a
- * project, the default version is applied; if the project had a version before
- * (selection after a reset), that version is kept.
+ * version), user selection. If the user cancels the selection, the default
+ * version is applied.
  * </p>
  */
 public class JakartaProjectVersionManager {
@@ -100,6 +99,26 @@ public class JakartaProjectVersionManager {
     }
 
     /**
+     * Checks the memory cache and then the version file, loading the file's
+     * version into the cache. Must be called while holding the project lock.
+     *
+     * @param projectUri the project URI
+     * @return true if the project has a version, false otherwise
+     */
+    private boolean loadKnownVersion(String projectUri) {
+        if (projectVersions.containsKey(projectUri)) {
+            return true;
+        }
+        VersionData versionData = JakartaVersionFileStore.readVersionData(projectUri);
+        if (versionData == null) {
+            return false;
+        }
+        projectVersions.put(projectUri, versionData);
+        LOGGER.info("Loaded Jakarta EE version " + versionData.getVersion() + " from file for project: " + projectUri);
+        return true;
+    }
+
+    /**
      * Returns the numeric level of a project's selected version, as used for snippet filtering.
      *
      * @param projectUri the project URI, may be null
@@ -125,25 +144,12 @@ public class JakartaProjectVersionManager {
      */
     public boolean resolve(String projectUri, List<JakartaVersion> detectedVersions) {
         synchronized (lockFor(projectUri)) {
-            if (projectVersions.containsKey(projectUri)) {
+            if (loadKnownVersion(projectUri)) {
                 return true;
             }
 
-            VersionData versionData = JakartaVersionFileStore.readVersionData(projectUri);
-            if (versionData != null) {
-                projectVersions.put(projectUri, versionData);
-                LOGGER.info("Loaded Jakarta EE version " + versionData.getVersion() + " from file for project: " + projectUri);
-                return true;
-            }
-
-            CompletableFuture<String> existingRequest = versionRequestsInFlight.get(projectUri);
-            if (existingRequest != null) {
-                existingRequest.thenAcceptAsync(version -> {
-                    if (version != null) {
-                        onVersionResolved.accept(projectUri);
-                    }
-                    // If null (cancelled), the request that sent the prompt applies the default and revalidates
-                }, executor);
+            // A selection request is already pending; its answer revalidates the project
+            if (versionRequestsInFlight.containsKey(projectUri)) {
                 return false;
             }
 
@@ -189,13 +195,6 @@ public class JakartaProjectVersionManager {
         synchronized (lockFor(projectUri)) {
             applyDetectedVersions(projectUri, detectedVersions, "reset");
         }
-    }
-
-    /**
-     * Clears the in-memory version cache of all projects. Version files on disk are kept.
-     */
-    public void clearCache() {
-        projectVersions.clear();
     }
 
     /**
@@ -282,7 +281,7 @@ public class JakartaProjectVersionManager {
 
         versionRequest.thenAcceptAsync(selectedVersion -> {
             synchronized (projectLock) {
-                versionRequestsInFlight.remove(projectUri);
+                versionRequestsInFlight.remove(projectUri, versionRequest);
 
                 if (selectedVersion != null) {
                     store(projectUri, new VersionData(selectedVersion, SelectionMode.USER_SELECTED, versions));
@@ -296,7 +295,7 @@ public class JakartaProjectVersionManager {
             }
         }, executor).exceptionally(ex -> {
             synchronized (projectLock) {
-                versionRequestsInFlight.remove(projectUri);
+                versionRequestsInFlight.remove(projectUri, versionRequest);
                 LOGGER.severe("Error during version selection (" + context + ") for project " + projectUri + ": " + ex.getMessage());
             }
             return null;

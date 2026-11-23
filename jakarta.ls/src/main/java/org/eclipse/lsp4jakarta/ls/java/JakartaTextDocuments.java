@@ -258,6 +258,9 @@ public class JakartaTextDocuments extends TextDocuments<JakartaTextDocument> {
                                                     "Error while getting the CompletableFuture ProjectLabelInfoEntry object from client for '%s'", document.getUri()),
                        e);
         }
+        if (entry != null && entry.getUri() != null && !entry.getUri().isEmpty()) {
+            document.setProjectURI(entry.getUri());
+        }
 
         // TODO: re-enable caching of the ProjectLabelInfoEntry objects?
 
